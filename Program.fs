@@ -12,7 +12,13 @@ open System.IO
 [<EntryPoint>]
 let main args =
     let builder = PhotinoBlazorAppBuilder.CreateDefault(args)
-    let configPath = Path.Combine("wwwroot", "log4net.config")
+
+    let configPath =
+        let assemblyFolderPath =
+            System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location)
+
+        Path.Combine(Path.Combine(assemblyFolderPath, "wwwroot"), "log4net.config")
+
     builder.Services.AddFunBlazorWasm() |> ignore
     builder.Services.AddFluentUIComponents() |> ignore
 
@@ -32,6 +38,7 @@ let main args =
     builder.Services.AddScoped<IChannelItems, ChannelItems>() |> ignore
     builder.Services.AddScoped<ICategories, Categories>() |> ignore
     builder.Services.AddTransient<IOpenDialogService, OpenDialogService>() |> ignore
+    builder.Services.AddTransient<IHttpHandler, HttpHandler>() |> ignore
     builder.Services.AddTransient<IIconDownloader, IconDownloader>() |> ignore
     builder.Services.AddTransient<IChannelReader, ChannelReader>() |> ignore
 

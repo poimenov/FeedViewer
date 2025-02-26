@@ -365,51 +365,80 @@ let getNavLinks (channels: list<Channel>) =
         })
 
 let navmenus =
-    html.injectWithNoKey (fun (store: IShareStore, groups: IChannelGroups, channels: IChannels) ->
-        adaptiview () {
-            let! binding = store.IsMenuOpen.WithSetter()
+    html.injectWithNoKey
+        (fun
+            (store: IShareStore,
+             hook: IComponentHook,
+             groups: IChannelGroups,
+             channels: IChannels,
+             channelReader: IChannelReader) ->
+            // hook.AddInitializedTask(fun () ->
+            //     task {
+            //         let iconsDirectoryPath =
+            //             let assemblyFolderPath =
+            //                 System.IO.Path.GetDirectoryName(
+            //                     System.Reflection.Assembly.GetExecutingAssembly().Location
+            //                 )
 
-            FluentNavMenu'' {
-                Width 200
-                Collapsible true
-                Expanded' binding
+            //             Path.Combine(Path.Combine(assemblyFolderPath, "wwwroot"), "icons")
 
-                FluentNavLink'' {
-                    Href "/channel/all"
-                    Match NavLinkMatch.All
-                    Icon(Icons.Regular.Size20.Document())
-                    "All"
+            //         let readChannel (id: int) =
+            //             channelReader.ReadChannelAsync(id, iconsDirectoryPath)
+
+            //         channels.GetAll()
+            //         |> Seq.map (fun c -> c.Id)
+            //         |> Seq.map readChannel
+            //         |> Seq.map Async.AwaitTask
+            //         |> Async.Parallel
+            //         |> Async.StartImmediateAsTask
+            //         |> ignore
+
+            //     })
+
+            adaptiview () {
+                let! binding = store.IsMenuOpen.WithSetter()
+
+                FluentNavMenu'' {
+                    Width 200
+                    Collapsible true
+                    Expanded' binding
+
+                    FluentNavLink'' {
+                        Href "/channel/all"
+                        Match NavLinkMatch.All
+                        Icon(Icons.Regular.Size20.Document())
+                        "All"
+                    }
+
+                    FluentNavLink'' {
+                        Href "/channel/starred"
+                        Match NavLinkMatch.Prefix
+                        Icon(Icons.Regular.Size20.Star())
+                        "Starred"
+                    }
+
+                    FluentNavLink'' {
+                        Href "/channel/readlater"
+                        Match NavLinkMatch.Prefix
+                        Icon(Icons.Regular.Size20.Flag())
+                        "Read Later"
+                    }
+
+                    yield!
+                        groups.GetAll()
+                        |> Seq.map (fun g ->
+                            FluentNavGroup'' {
+                                title' g.Name
+                                Tooltip g.Name
+                                href $"/group/{g.Id}"
+                                Icon(Icons.Regular.Size20.Folder())
+
+                                yield! channels.GetByGroupId(Some(g.Id)) |> getNavLinks
+                            })
+
+                    yield! channels.GetByGroupId(None) |> getNavLinks
                 }
-
-                FluentNavLink'' {
-                    Href "/channel/starred"
-                    Match NavLinkMatch.Prefix
-                    Icon(Icons.Regular.Size20.Star())
-                    "Starred"
-                }
-
-                FluentNavLink'' {
-                    Href "/channel/readlater"
-                    Match NavLinkMatch.Prefix
-                    Icon(Icons.Regular.Size20.Flag())
-                    "Read Later"
-                }
-
-                yield!
-                    groups.GetAll()
-                    |> Seq.map (fun g ->
-                        FluentNavGroup'' {
-                            title' g.Name
-                            Tooltip g.Name
-                            href $"/group/{g.Id}"
-                            Icon(Icons.Regular.Size20.Folder())
-
-                            yield! channels.GetByGroupId(Some(g.Id)) |> getNavLinks
-                        })
-
-                yield! channels.GetByGroupId(None) |> getNavLinks
-            }
-        })
+            })
 
 let routes =
     html.route

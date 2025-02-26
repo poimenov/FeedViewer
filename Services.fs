@@ -55,7 +55,6 @@ type ILinkOpeningService =
 
 type LinkOpeningService(platformService: IPlatformService, processService: IProcessService) =
     interface ILinkOpeningService with
-        //[<Microsoft.JSInterop.JSInvokable("OpenUrl")>]
         member this.OpenUrl(url: string) =
             match platformService.GetPlatform() with
             | Windows -> processService.Run("cmd", $"/c start {url}")
@@ -233,7 +232,7 @@ type HttpHandler() =
 type IIconDownloader =
     abstract member DownloadIconAsync: Uri option * Uri option * string -> Task<unit>
     abstract member GetIconExtension: byte[] -> string
-    abstract member SaveIconAsync: string * string * string -> Task<unit>
+    abstract member SaveIconAsync: string * Uri * string -> Task<unit>
 
 type IconDownloader(http: IHttpHandler, logger: ILogger<IconDownloader>) =
     interface IIconDownloader with
@@ -264,12 +263,12 @@ type IconDownloader(http: IHttpHandler, logger: ILogger<IconDownloader>) =
                             if links.Length > 0 then
                                 do!
                                     (this :> IIconDownloader)
-                                        .SaveIconAsync(links[0].AttributeValue("href"), uri.Host, iconsDirectoryPath)
+                                        .SaveIconAsync(links[0].AttributeValue("href"), uri, iconsDirectoryPath)
                                     |> Async.AwaitTask
                         else
                             do!
                                 (this :> IIconDownloader)
-                                    .SaveIconAsync(imageUri.Value.ToString(), uri.Host, iconsDirectoryPath)
+                                    .SaveIconAsync(imageUri.Value.ToString(), uri, iconsDirectoryPath)
                                 |> Async.AwaitTask
                     | _ -> ()
 
@@ -319,13 +318,14 @@ type IconDownloader(http: IHttpHandler, logger: ILogger<IconDownloader>) =
 
             retVal
 
-        member this.SaveIconAsync(url: string, host: string, iconsDirectoryPath: string) : Task<unit> =
+        member this.SaveIconAsync(url: string, host: Uri, iconsDirectoryPath: string) : Task<unit> =
             async {
-                let! data = http.GetByteArrayAsync(url) |> Async.AwaitTask
+                let urlToDownload = new Uri(host, url)
+                let! data = http.GetByteArrayAsync(urlToDownload.AbsoluteUri) |> Async.AwaitTask
 
                 if data.Length > 0 then
                     let ext = (this :> IIconDownloader).GetIconExtension data
-                    let fileName = $"{host}{ext}"
+                    let fileName = $"{host.Host}{ext}"
                     let filePath = Path.Combine(iconsDirectoryPath, fileName)
                     File.WriteAllBytes(filePath, data)
             }

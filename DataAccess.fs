@@ -353,7 +353,13 @@ type ChannelItems(connectionService: IConnectionService) =
                         ();"
                 |> Db.setParams
                     [ "ChannelId", SqlType.Int channelItem.ChannelId
-                      "ItemId", SqlType.String channelItem.ItemId
+                      "ItemId",
+                      SqlType.String(
+                          if String.IsNullOrWhiteSpace(channelItem.ItemId) then
+                              defaultArg channelItem.Link (System.Guid.NewGuid().ToString())
+                          else
+                              channelItem.ItemId
+                      )
                       "Title", SqlType.String channelItem.Title
                       "Description", SqlType.String(defaultArg channelItem.Description null)
                       "Content", SqlType.String(defaultArg channelItem.Link null)
@@ -374,7 +380,7 @@ type ChannelItems(connectionService: IConnectionService) =
                 |> Db.newCommandForTransaction
                     "INSERT INTO Categories (Name) 
                     SELECT @Name 
-                    WERE NOT EXISTS (SELECT 1 FROM Categories WHERE Name = @Name);
+                    WHERE NOT EXISTS (SELECT 1 FROM Categories WHERE Name = @Name);
                     SELECT Id FROM Categories WHERE Name = @Name;"
                 |> Db.setParams [ "Name", SqlType.String category ]
                 |> Db.scalar Convert.ToInt32
