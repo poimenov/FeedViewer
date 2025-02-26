@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <NoDefaultLaunchSettingsFile>True</NoDefaultLaunchSettingsFile>
+    <ApplicationIcon>wwwroot/favicon.ico</ApplicationIcon>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Models.fs" />
+    <EmbeddedResource Include="CreateDatabase.sql" />
+    <Compile Include="DataAccess.fs" />
+    <Compile Include="Services.fs" />
+    <Compile Include="DIExtensions.fs" />
+    <Compile Include="App.fs" />
+    <Compile Include="Program.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Update="wwwroot\**">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content> 
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="CodeHollow.FeedReader" Version="1.2.6" />
+    <PackageReference Include="Donald" Version="10.1.0" />
+    <PackageReference Include="FSharp.Data" Version="6.4.1" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="9.0.2" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Log4Net.AspNetCore" Version="8.0.0" />
+    <PackageReference Include="Photino.Blazor" Version="3.2.0" />
+    <PackageReference Include="Fun.Blazor.Wasm" Version="4.1.*" />
+    <PackageReference Include="Fun.Blazor.Microsoft.Web" Version="8.0.*" />
+    <PackageReference Include="Fun.Blazor.Microsoft.Authorization" Version="8.0.*" />
+    <PackageReference Include="Fun.Blazor.Microsoft.FluentUI" Version="4.11.3" />
+    <PackageReference Include="Microsoft.FluentUI.AspNetCore.Components.Icons" Version="4.11.3" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="8.0.*" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="8.0.*" PrivateAssets="all" />
+  </ItemGroup>
+</Project>
