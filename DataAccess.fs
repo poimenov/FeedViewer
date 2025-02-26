@@ -241,7 +241,7 @@ type Channels(connectionService: IConnectionService) =
             use conn = connectionService.GetConnection()
 
             conn
-            |> Db.newCommand "SELECT COUNT(*) FROM ChannelItems WHERE ChannelId = @ChannelId IsRead = 0;"
+            |> Db.newCommand "SELECT COUNT(*) FROM ChannelItems WHERE ChannelId = @ChannelId AND IsRead = 0;"
             |> Db.setParams [ "ChannelId", SqlType.Int id ]
             |> Db.scalar Convert.ToInt32
 

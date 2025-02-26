@@ -34,6 +34,7 @@ type IShareStore with
     member store.IsMenuOpen = store.CreateCVal(nameof store.IsMenuOpen, true)
     member store.IsSettingsOpen = store.CreateCVal(nameof store.IsSettingsOpen, false)
     member store.Theme = store.CreateCVal(nameof store.Theme, DesignThemeModes.Light)
+    member store.LeftPaneWidth = store.CreateCVal(nameof store.LeftPaneWidth, 350)
 
     member store.SelectedChannelItem =
         store.CreateCVal(nameof store.SelectedChannelItem, SelectedChannelItem.NotSelected)
@@ -46,7 +47,6 @@ let appHeader =
 
                 img {
                     src "favicon.ico"
-
                     style { height "28px" }
                 }
 
@@ -154,7 +154,6 @@ let appHeader =
                     }
                 }
             }
-
         })
 
 let appFooter =
@@ -162,7 +161,6 @@ let appFooter =
         hook.AddFirstAfterRenderTask(fun _ ->
             task {
                 let losObjRef = DotNetObjectReference.Create(OpenLinkProvider(los))
-
                 jsRuntime.InvokeAsync("SetOpenLinkProvider", losObjRef) |> ignore
             })
 
@@ -170,7 +168,6 @@ let appFooter =
             a {
                 href "https://slaveoftime.github.io/Fun.Blazor.Docs/"
                 onclick "OpenLink()"
-
                 "Fun.Blazor"
             }
 
@@ -180,7 +177,6 @@ let appFooter =
                 Appearance Appearance.Hypertext
                 href "#"
                 OnClick(fun _ -> los.OpenUrl "https://www.tryphotino.io")
-
                 "Photino"
             }
         })
@@ -194,21 +190,85 @@ let contentPage (id: channelId) =
              channelItems: IChannelItems,
              linkOpeningService: ILinkOpeningService) ->
 
-            let title, items =
+            let title, items, count =
                 match id with
-                | All -> "All", channelItems.GetByRead(false)
-                | ReadLater -> "Read Later", channelItems.GetByReadLater(true)
-                | Starred -> "Starred", channelItems.GetByFavorite(true)
-                | ByGroupId groupId -> groups.GetById(groupId).Value.Name, channelItems.GetByGroupId groupId
-                | ByChannelId channelId -> channels.Get(channelId).Value.Title, channelItems.GetByChannelId channelId
+                | All -> "All", channelItems.GetByRead(false), channels.GetAllUnreadCount()
+                | ReadLater -> "Read Later", channelItems.GetByReadLater(true), channels.GetReadLaterCount()
+                | Starred -> "Starred", channelItems.GetByFavorite(true), channels.GetStarredCount()
+                | ByGroupId groupId ->
+                    groups.GetById(groupId).Value.Name,
+                    channelItems.GetByGroupId groupId,
+                    groups.GetGroupUnreadCount groupId
+                | ByChannelId channelId ->
+                    channels.Get(channelId).Value.Title,
+                    channelItems.GetByChannelId channelId,
+                    channels.GetChannelUnreadCount channelId
 
             fragment {
+                div {
+                    style' "height: 80px;"
+
+                    FluentStack'' {
+                        Orientation Orientation.Horizontal
+
+                        adapt {
+                            let! leftPaneWidth, setLeftPaneWidth = store.LeftPaneWidth.WithSetter()
+
+                            div {
+                                style' $"width: {leftPaneWidth}px;"
+
+                                FluentLabel'' {
+                                    Typo Typography.H4
+                                    Color Color.Accent
+                                    $"{title}({count})"
+                                }
+                            }
+                        }
+
+                        adapt {
+                            let! selectedItem, setSelectedItem = store.SelectedChannelItem.WithSetter()
+                            let! leftPaneWidth, setLeftPaneWidth = store.LeftPaneWidth.WithSetter()
+
+                            div {
+                                style' ("width: calc(100%-" + leftPaneWidth.ToString() + "px) ;overflow: hidden;")
+
+                                match selectedItem with
+                                | NotSelected -> ()
+                                | SelectedChannelItem.Selected selItem ->
+                                    let link =
+                                        match selItem.Link with
+                                        | Some link -> link
+                                        | None -> "#"
+
+                                    div {
+                                        a {
+                                            style' "font-size: 16px;font-weight: bold;"
+                                            href link
+                                            onclick "OpenLink()"
+                                            selItem.Title
+                                        }
+                                    }
+
+                                    div {
+                                        style' "font-style: italic;font-size: 12px;"
+
+                                        match selItem.PublishingDate with
+                                        | Some date -> date.ToLongDateString()
+                                        | None -> ""
+                                    }
+                            }
+                        }
+                    }
+                }
+
                 FluentSplitter'' {
                     Orientation Orientation.Horizontal
                     Panel1MinSize "200px"
                     Panel1Size "350px"
                     Panel2MinSize "200px"
-                    style' "height: 100%;"
+                    style' "height: calc(100% - 80px);"
+
+                    OnResized(fun args -> store.LeftPaneWidth.Publish(args.Panel1Size))
 
                     Panel1(
                         div {
@@ -222,12 +282,6 @@ let contentPage (id: channelId) =
                                     match selectedItem with
                                     | NotSelected -> defaultStyle
                                     | Selected item -> if curr.Id = item.Id then selectedStyle else defaultStyle
-
-                                FluentLabel'' {
-                                    Typo Typography.H1
-                                    Color Color.Accent
-                                    title
-                                }
 
                                 Virtualize'' {
                                     Items(items.ToList<ChannelItem>())
@@ -266,7 +320,6 @@ let contentPage (id: channelId) =
                                     EmptyContent(
                                         div {
                                             style' "font-size: 12px; font-weight: bold;"
-
                                             "No items"
                                         }
                                     )
@@ -288,28 +341,12 @@ let contentPage (id: channelId) =
                                 match selectedItem with
                                 | NotSelected -> ()
                                 | SelectedChannelItem.Selected selItem ->
-                                    FluentStack'' {
-                                        Orientation Orientation.Vertical
-
-                                        FluentAnchor'' {
-                                            Appearance Appearance.Hypertext
-                                            href "#"
-                                            class' "channel-items-title"
-
-                                            OnClick(fun _ ->
-                                                if selItem.Link.IsSome then
-                                                    linkOpeningService.OpenUrl(selItem.Link.Value))
-
-                                            selItem.Title
-                                        }
-
-                                        match selItem.Content with
-                                        | None ->
-                                            match selItem.Description with
-                                            | None -> ()
-                                            | Some description -> div { childContentRaw (addOpenLink (description)) }
-                                        | Some contentHtml -> div { childContentRaw (addOpenLink (contentHtml)) }
-                                    }
+                                    match selItem.Content with
+                                    | None ->
+                                        match selItem.Description with
+                                        | None -> ()
+                                        | Some description -> div { childContentRaw (addOpenLink (description)) }
+                                    | Some contentHtml -> div { childContentRaw (addOpenLink (contentHtml)) }
                             }
                         }
                     )
@@ -324,7 +361,6 @@ let getNavLinks (channels: list<Channel>) =
             Tooltip c.Title
             Match NavLinkMatch.Prefix
             Icon(Icons.Regular.Size20.Channel())
-
             c.Title
         })
 
@@ -410,7 +446,6 @@ let app =
 
                     div {
                         class' "content"
-
                         routes
                     }
                 }
