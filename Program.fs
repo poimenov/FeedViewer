@@ -13,16 +13,18 @@ open System.IO
 let main args =
     let builder = PhotinoBlazorAppBuilder.CreateDefault(args)
 
-    let configPath =
-        let assemblyFolderPath =
-            System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location)
+    // let relativeConfigPath = Path.Combine("wwwroot", "log4net.config")
 
-        Path.Combine(Path.Combine(assemblyFolderPath, "wwwroot"), "log4net.config")
+    // let absoluteConfigPath =
+    //     let assemblyFolderPath =
+    //         System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location)
+
+    //     Path.Combine(assemblyFolderPath, relativeConfigPath)
 
     builder.Services.AddFunBlazorWasm() |> ignore
     builder.Services.AddFluentUIComponents() |> ignore
 
-    builder.Services.AddLogging(fun logging -> logging.ClearProviders().AddLog4Net(configPath) |> ignore)
+    builder.Services.AddLogging(fun logging -> logging.ClearProviders().AddLog4Net() |> ignore<ILoggingBuilder>)
     |> ignore
 
     builder.Services.AddSingleton<IPlatformService, PlatformService>() |> ignore
@@ -51,7 +53,7 @@ let main args =
 
     application.RootComponents.AddFunBlazor("#app", app) |> ignore
     AppDomain.CurrentDomain.SetData("DataDirectory", FeedViewer.DataAccess.AppDataPath)
-    XmlConfigurator.Configure(new FileInfo(configPath)) |> ignore
+    FileInfo("log4net.config") |> XmlConfigurator.Configure |> ignore
 
     // customize window
     application.MainWindow
@@ -62,6 +64,7 @@ let main args =
 
     AppDomain.CurrentDomain.UnhandledException.Add(fun e ->
         let ex = e.ExceptionObject :?> Exception
+        application.Services.GetRequiredService<ILogger<_>>().LogError(ex, ex.Message)
         application.MainWindow.ShowMessage(ex.Message, "Error") |> ignore)
 
     application.Run()

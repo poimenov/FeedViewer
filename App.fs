@@ -353,6 +353,26 @@ let contentPage (id: channelId) =
                 }
             })
 
+let iconsDirectoryPath =
+    let assemblyFolderPath =
+        System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location)
+
+    Path.Combine(Path.Combine(assemblyFolderPath, "wwwroot"), "icons")
+
+let getChannelIcon (channel: Channel) =
+    let host = Uri(channel.Url).Host
+    let files = Directory.GetFiles(iconsDirectoryPath, $"{host}.*")
+
+    let filePath =
+        if files.Length > 0 then
+            $"icons/{Path.GetFileName(files.[0])}"
+        else
+            "icons/rss-button-orange.32.png"
+
+    Icon(String.Empty, IconVariant.Regular, IconSize.Size20, $"<img src=\"{filePath}\"  style=\"width: 100%%;\" />")
+
+
+
 let getNavLinks (channels: list<Channel>) =
     channels
     |> Seq.map (fun c ->
@@ -360,7 +380,7 @@ let getNavLinks (channels: list<Channel>) =
             Href $"/channel/{c.Id}"
             Tooltip c.Title
             Match NavLinkMatch.Prefix
-            Icon(Icons.Regular.Size20.Channel())
+            Icon(getChannelIcon c)
             c.Title
         })
 
@@ -374,14 +394,6 @@ let navmenus =
              channelReader: IChannelReader) ->
             // hook.AddInitializedTask(fun () ->
             //     task {
-            //         let iconsDirectoryPath =
-            //             let assemblyFolderPath =
-            //                 System.IO.Path.GetDirectoryName(
-            //                     System.Reflection.Assembly.GetExecutingAssembly().Location
-            //                 )
-
-            //             Path.Combine(Path.Combine(assemblyFolderPath, "wwwroot"), "icons")
-
             //         let readChannel (id: int) =
             //             channelReader.ReadChannelAsync(id, iconsDirectoryPath)
 

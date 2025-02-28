@@ -13,6 +13,9 @@
     <Compile Include="DIExtensions.fs" />
     <Compile Include="App.fs" />
     <Compile Include="Program.fs" />
+    <Content Update="log4net.config">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>    
   </ItemGroup>
   <ItemGroup>
     <Content Update="wwwroot\**">
@@ -23,6 +26,7 @@
     <PackageReference Include="CodeHollow.FeedReader" Version="1.2.6" />
     <PackageReference Include="Donald" Version="10.1.0" />
     <PackageReference Include="FSharp.Data" Version="6.4.1" />
+    <PackageReference Include="log4net" Version="3.0.4" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="9.0.2" />
     <PackageReference Include="Microsoft.Extensions.Logging.Log4Net.AspNetCore" Version="8.0.0" />
     <PackageReference Include="Photino.Blazor" Version="3.2.0" />

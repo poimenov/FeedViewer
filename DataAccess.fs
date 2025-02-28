@@ -8,6 +8,7 @@ open System.Reflection
 open System.Data
 open Donald
 open FeedViewer.Models
+open System.Diagnostics
 
 [<Literal>]
 let ApplicationName = "FeedViewer"
@@ -50,8 +51,13 @@ type DataBase(connectionService: IConnectionService) =
             if not (File.Exists(DataBasePath)) then
                 use conn = connectionService.GetConnection()
                 use tran = conn.TryBeginTransaction()
-                tran |> Db.newCommandForTransaction CreateDatabaseScript |> Db.exec
-                tran.TryCommit()
+
+                try
+                    tran |> Db.newCommandForTransaction CreateDatabaseScript |> Db.exec
+                    tran.TryCommit()
+                with ex ->
+                    Debug.WriteLine(ex)
+                    tran.TryRollback()
 
 type IChannelGroups =
     abstract member Create: ChannelGroup -> int
@@ -67,66 +73,81 @@ type ChannelGroups(connectionService: IConnectionService) =
         member this.Create(channelGroup) =
             use conn = connectionService.GetConnection()
 
-            conn
-            |> Db.newCommand
-                "INSERT INTO ChannelsGroups (Name)
-                SELECT @Name
-                WHERE NOT EXISTS (SELECT 1 FROM ChannelsGroups WHERE Name = @Name);
-                SELECT Id FROM ChannelsGroups WHERE Name = @Name;"
-            |> Db.setParams [ "Name", SqlType.String channelGroup.Name ]
-            |> Db.scalar Convert.ToInt32
+            use cmd =
+                conn
+                |> Db.newCommand
+                    "INSERT INTO ChannelsGroups (Name)
+                    SELECT @Name
+                    WHERE NOT EXISTS (SELECT 1 FROM ChannelsGroups WHERE Name = @Name);
+                    SELECT Id FROM ChannelsGroups WHERE Name = @Name;"
+                |> Db.setParams [ "Name", SqlType.String channelGroup.Name ]
+
+            cmd |> Db.scalar Convert.ToInt32
 
         member this.Delete(id) =
             use conn = connectionService.GetConnection()
 
-            conn
-            |> Db.newCommand "DELETE FROM ChannelsGroups WHERE Id = @Id;"
-            |> Db.setParams [ "Id", SqlType.Int id ]
-            |> Db.exec
+            use cmd =
+                conn
+                |> Db.newCommand "DELETE FROM ChannelsGroups WHERE Id = @Id;"
+                |> Db.setParams [ "Id", SqlType.Int id ]
+
+            cmd |> Db.exec
 
         member this.GetAll() =
             use conn = connectionService.GetConnection()
 
-            conn
-            |> Db.newCommand "SELECT Id, Name FROM ChannelsGroups ORDER BY Name;"
+            use cmd = conn |> Db.newCommand "SELECT Id, Name FROM ChannelsGroups ORDER BY Name;"
+
+            cmd
             |> Db.query (fun reader -> ChannelGroup(reader.ReadInt32("Id"), reader.ReadString("Name")))
             |> List.ofSeq
 
         member this.GetById(id) =
             use conn = connectionService.GetConnection()
 
-            conn
-            |> Db.newCommand "SELECT Id, Name FROM ChannelsGroups WHERE Id = @Id;"
-            |> Db.setParams [ "Id", SqlType.Int id ]
+            use cmd =
+                conn
+                |> Db.newCommand "SELECT Id, Name FROM ChannelsGroups WHERE Id = @Id;"
+                |> Db.setParams [ "Id", SqlType.Int id ]
+
+            cmd
             |> Db.query (fun reader -> ChannelGroup(reader.ReadInt32("Id"), reader.ReadString("Name")))
             |> List.tryHead
 
         member this.GetByName(name) =
             use conn = connectionService.GetConnection()
 
-            conn
-            |> Db.newCommand "SELECT Id, Name FROM ChannelsGroups WHERE Name = @Name;"
-            |> Db.setParams [ "Name", SqlType.String name ]
+            use cmd =
+                conn
+                |> Db.newCommand "SELECT Id, Name FROM ChannelsGroups WHERE Name = @Name;"
+                |> Db.setParams [ "Name", SqlType.String name ]
+
+            cmd
             |> Db.query (fun reader -> ChannelGroup(reader.ReadInt32("Id"), reader.ReadString("Name")))
             |> List.tryHead
 
         member this.Update(channelGroup) =
             use conn = connectionService.GetConnection()
 
-            conn
-            |> Db.newCommand "UPDATE ChannelsGroups SET Name = @Name WHERE Id = @Id;"
-            |> Db.setParams [ "Name", SqlType.String channelGroup.Name; "Id", SqlType.Int channelGroup.Id ]
-            |> Db.exec
+            use cmd =
+                conn
+                |> Db.newCommand "UPDATE ChannelsGroups SET Name = @Name WHERE Id = @Id;"
+                |> Db.setParams [ "Name", SqlType.String channelGroup.Name; "Id", SqlType.Int channelGroup.Id ]
+
+            cmd |> Db.exec
 
         member this.GetGroupUnreadCount(groupId: int) =
             use conn = connectionService.GetConnection()
 
-            conn
-            |> Db.newCommand
-                "SELECT COUNT(*) FROM ChannelItems CI INNER JOIN Channels C
-                    ON CI.ChannelId = C.Id WHERE C.ChannelsGroupId = @ChannelsGroupId;"
-            |> Db.setParams [ "ChannelsGroupId", SqlType.Int groupId ]
-            |> Db.scalar Convert.ToInt32
+            use cmd =
+                conn
+                |> Db.newCommand
+                    "SELECT COUNT(*) FROM ChannelItems CI INNER JOIN Channels C
+                        ON CI.ChannelId = C.Id WHERE C.ChannelsGroupId = @ChannelsGroupId;"
+                |> Db.setParams [ "ChannelsGroupId", SqlType.Int groupId ]
+
+            cmd |> Db.scalar Convert.ToInt32
 
 type IChannels =
     abstract member Create: Channel -> int
@@ -162,70 +183,79 @@ type Channels(connectionService: IConnectionService) =
         member this.Create(channel) =
             use conn = connectionService.GetConnection()
 
-            conn
-            |> Db.newCommand
-                "INSERT INTO Channels (ChannelsGroupId, Title, Description, Link, Url, ImageUrl, Language)
-                SELECT @GroupId, @Title, @Description, @Link, @Url, @ImageUrl, @Language
-                WHERE NOT EXISTS (SELECT 1 FROM Channels WHERE Url = @Url);
-                SELECT Id FROM Channels WHERE Url = @Url;"
-            |> Db.setParams
-                [ "GroupId",
-                  if channel.GroupId.IsNone then
-                      SqlType.Null
-                  else
-                      SqlType.Int channel.GroupId.Value
-                  "Title", SqlType.String channel.Title
-                  "Description", SqlType.String(defaultArg channel.Description null)
-                  "Link", SqlType.String(defaultArg channel.Link null)
-                  "Url", SqlType.String channel.Url
-                  "ImageUrl", SqlType.String(defaultArg channel.ImageUrl null)
-                  "Language", SqlType.String(defaultArg channel.Language null) ]
-            |> Db.scalar Convert.ToInt32
+            use cmd =
+                conn
+                |> Db.newCommand
+                    "INSERT INTO Channels (ChannelsGroupId, Title, Description, Link, Url, ImageUrl, Language)
+                    SELECT @GroupId, @Title, @Description, @Link, @Url, @ImageUrl, @Language
+                    WHERE NOT EXISTS (SELECT 1 FROM Channels WHERE Url = @Url);
+                    SELECT Id FROM Channels WHERE Url = @Url;"
+                |> Db.setParams
+                    [ "GroupId",
+                      if channel.GroupId.IsNone then
+                          SqlType.Null
+                      else
+                          SqlType.Int channel.GroupId.Value
+                      "Title", SqlType.String channel.Title
+                      "Description", SqlType.String(defaultArg channel.Description null)
+                      "Link", SqlType.String(defaultArg channel.Link null)
+                      "Url", SqlType.String channel.Url
+                      "ImageUrl", SqlType.String(defaultArg channel.ImageUrl null)
+                      "Language", SqlType.String(defaultArg channel.Language null) ]
+
+            cmd |> Db.scalar Convert.ToInt32
 
         member this.Delete(id) =
             use conn = connectionService.GetConnection()
 
-            conn
-            |> Db.newCommand "DELETE FROM Channels WHERE Id = @Id;"
-            |> Db.setParams [ "Id", SqlType.Int id ]
-            |> Db.exec
+            use cmd =
+                conn
+                |> Db.newCommand "DELETE FROM Channels WHERE Id = @Id;"
+                |> Db.setParams [ "Id", SqlType.Int id ]
+
+            cmd |> Db.exec
 
         member this.Exists(url) =
             use conn = connectionService.GetConnection()
 
-            conn
-            |> Db.newCommand "SELECT EXISTS (SELECT 1 FROM Channels WHERE Url = @Url);"
-            |> Db.setParams [ "Url", SqlType.String url ]
-            |> Db.scalar Convert.ToBoolean
+            use cmd =
+                conn
+                |> Db.newCommand "SELECT EXISTS (SELECT 1 FROM Channels WHERE Url = @Url);"
+                |> Db.setParams [ "Url", SqlType.String url ]
+
+            cmd |> Db.scalar Convert.ToBoolean
 
         member this.Get(id) =
             use conn = connectionService.GetConnection()
 
-            conn
-            |> Db.newCommand (selectChannelSql + " WHERE Id = @Id;")
-            |> Db.setParams [ "Id", SqlType.Int id ]
-            |> Db.query (fun reader -> getChannel reader)
-            |> List.tryHead
+            use cmd =
+                conn
+                |> Db.newCommand (selectChannelSql + " WHERE Id = @Id;")
+                |> Db.setParams [ "Id", SqlType.Int id ]
+
+            cmd |> Db.query (fun reader -> getChannel reader) |> List.tryHead
 
         member this.GetAll() =
             use conn = connectionService.GetConnection()
 
-            conn
-            |> Db.newCommand selectChannelSql
+            use cmd = conn |> Db.newCommand selectChannelSql
+
+            cmd
             |> Db.query (fun reader -> getChannel reader)
             |> List.sortBy (fun channel -> channel.Title)
 
         member this.GetAllUnreadCount() =
             use conn = connectionService.GetConnection()
 
-            conn
-            |> Db.newCommand "SELECT COUNT(*) FROM ChannelItems WHERE IsRead = 0;"
-            |> Db.scalar Convert.ToInt32
+            use cmd =
+                conn |> Db.newCommand "SELECT COUNT(*) FROM ChannelItems WHERE IsRead = 0;"
+
+            cmd |> Db.scalar Convert.ToInt32
 
         member this.GetByGroupId(id) =
             use conn = connectionService.GetConnection()
 
-            let cmd =
+            use cmd =
                 if id.IsNone then
                     conn |> Db.newCommand (selectChannelSql + " WHERE ChannelsGroupId IS NULL;")
                 else
@@ -240,31 +270,36 @@ type Channels(connectionService: IConnectionService) =
         member this.GetChannelUnreadCount(id) =
             use conn = connectionService.GetConnection()
 
-            conn
-            |> Db.newCommand "SELECT COUNT(*) FROM ChannelItems WHERE ChannelId = @ChannelId AND IsRead = 0;"
-            |> Db.setParams [ "ChannelId", SqlType.Int id ]
-            |> Db.scalar Convert.ToInt32
+            use cmd =
+                conn
+                |> Db.newCommand "SELECT COUNT(*) FROM ChannelItems WHERE ChannelId = @ChannelId AND IsRead = 0;"
+                |> Db.setParams [ "ChannelId", SqlType.Int id ]
+
+            cmd |> Db.scalar Convert.ToInt32
 
         member this.GetReadLaterCount() =
             use conn = connectionService.GetConnection()
 
-            conn
-            |> Db.newCommand "SELECT COUNT(*) FROM ChannelItems WHERE IsReadLater = 1;"
-            |> Db.scalar Convert.ToInt32
+            use cmd =
+                conn |> Db.newCommand "SELECT COUNT(*) FROM ChannelItems WHERE IsReadLater = 1;"
+
+            cmd |> Db.scalar Convert.ToInt32
 
         member this.GetStarredCount() =
             use conn = connectionService.GetConnection()
 
-            conn
-            |> Db.newCommand "SELECT COUNT(*) FROM ChannelItems WHERE IsFavorite = 1;"
-            |> Db.scalar Convert.ToInt32
+            use cmd =
+                conn |> Db.newCommand "SELECT COUNT(*) FROM ChannelItems WHERE IsFavorite = 1;"
+
+            cmd |> Db.scalar Convert.ToInt32
 
         member this.Update(channel) =
             use conn = connectionService.GetConnection()
 
-            conn
-            |> Db.newCommand
-                "UPDATE Channels 
+            use cmd =
+                conn
+                |> Db.newCommand
+                    "UPDATE Channels 
                     SET 
                         Title = @Title, 
                         ChannelsGroupId = @GroupId,
@@ -274,20 +309,21 @@ type Channels(connectionService: IConnectionService) =
                         ImageUrl = @ImageUrl, 
                         Language = @Language 
                     WHERE Id = @Id;"
-            |> Db.setParams
-                [ "Id", SqlType.Int channel.Id
-                  "GroupId",
-                  if channel.GroupId.IsNone then
-                      SqlType.Null
-                  else
-                      SqlType.Int channel.GroupId.Value
-                  "Title", SqlType.String channel.Title
-                  "Description", SqlType.String(defaultArg channel.Description null)
-                  "Link", SqlType.String(defaultArg channel.Link null)
-                  "Url", SqlType.String channel.Url
-                  "ImageUrl", SqlType.String(defaultArg channel.ImageUrl null)
-                  "Language", SqlType.String(defaultArg channel.Language null) ]
-            |> Db.exec
+                |> Db.setParams
+                    [ "Id", SqlType.Int channel.Id
+                      "GroupId",
+                      if channel.GroupId.IsNone then
+                          SqlType.Null
+                      else
+                          SqlType.Int channel.GroupId.Value
+                      "Title", SqlType.String channel.Title
+                      "Description", SqlType.String(defaultArg channel.Description null)
+                      "Link", SqlType.String(defaultArg channel.Link null)
+                      "Url", SqlType.String channel.Url
+                      "ImageUrl", SqlType.String(defaultArg channel.ImageUrl null)
+                      "Language", SqlType.String(defaultArg channel.Language null) ]
+
+            cmd |> Db.exec
 
 type IChannelItems =
     abstract member Create: ChannelItem -> int64
@@ -315,9 +351,7 @@ type ChannelItems(connectionService: IConnectionService) =
             WHERE {0}
             ORDER BY PublishingDate DESC"
 
-        let retVal = System.String.Format(sql, where)
-        printfn "%s" retVal
-        retVal
+        System.String.Format(sql, where)
 
     let getChannelItem (reader: IDataReader) =
         ChannelItem(
@@ -338,19 +372,15 @@ type ChannelItems(connectionService: IConnectionService) =
 
     interface IChannelItems with
         member this.Create(channelItem: ChannelItem) : int64 =
-            use conn = connectionService.GetConnection()
-            use tran = conn.TryBeginTransaction()
-
-            let id =
+            let getCmdInsertChannelItems (tran: IDbTransaction) =
                 tran
                 |> Db.newCommandForTransaction
                     "INSERT INTO ChannelItems
-                        (ChannelId, ItemId, Title, Description, Content, Link, PublishingDate, IsRead, IsReadLater, IsFavorite, IsDeleted)
-                        SELECT
-                        @ChannelId, @ItemId, @Title, @Description, @Content, @Link, @PublishingDate, @IsRead, @IsReadLater, @IsFavorite, @IsDeleted
-                        WHERE NOT EXISTS (SELECT 1 FROM ChannelItems WHERE ItemId = @ItemId);
-                        SELECT Id FROM ChannelItems WHERE ItemId = @ItemId;
-                        ();"
+                    (ChannelId, ItemId, Title, Description, Content, Link, PublishingDate, IsRead, IsReadLater, IsFavorite, IsDeleted)
+                    SELECT
+                    @ChannelId, @ItemId, @Title, @Description, @Content, @Link, @PublishingDate, @IsRead, @IsReadLater, @IsFavorite, @IsDeleted
+                    WHERE NOT EXISTS (SELECT 1 FROM ChannelItems WHERE ItemId = @ItemId);
+                    SELECT Id FROM ChannelItems WHERE ItemId = @ItemId;"
                 |> Db.setParams
                     [ "ChannelId", SqlType.Int channelItem.ChannelId
                       "ItemId",
@@ -362,7 +392,7 @@ type ChannelItems(connectionService: IConnectionService) =
                       )
                       "Title", SqlType.String channelItem.Title
                       "Description", SqlType.String(defaultArg channelItem.Description null)
-                      "Content", SqlType.String(defaultArg channelItem.Link null)
+                      "Content", SqlType.String(defaultArg channelItem.Content null)
                       "Link", SqlType.String(defaultArg channelItem.Link null)
                       "PublishingDate",
                       if channelItem.PublishingDate.IsNone then
@@ -373,174 +403,207 @@ type ChannelItems(connectionService: IConnectionService) =
                       "IsReadLater", SqlType.Boolean channelItem.IsReadLater
                       "IsFavorite", SqlType.Boolean channelItem.IsFavorite
                       "IsDeleted", SqlType.Boolean channelItem.IsDeleted ]
-                |> Db.scalar Convert.ToInt64
 
-            let getCategoryId (category: string) =
+            let getCmdInsertCategories (tran: IDbTransaction) =
                 tran
                 |> Db.newCommandForTransaction
                     "INSERT INTO Categories (Name) 
-                    SELECT @Name 
-                    WHERE NOT EXISTS (SELECT 1 FROM Categories WHERE Name = @Name);
-                    SELECT Id FROM Categories WHERE Name = @Name;"
-                |> Db.setParams [ "Name", SqlType.String category ]
-                |> Db.scalar Convert.ToInt32
+                        SELECT @Name 
+                        WHERE NOT EXISTS (SELECT 1 FROM Categories WHERE Name = @Name);
+                        SELECT Id FROM Categories WHERE Name = @Name;"
 
-            let addCategoryToChannelItem (categoryId: int) =
+            let getCmdInsertItemCategories (tran: IDbTransaction) =
                 tran
                 |> Db.newCommandForTransaction
                     "INSERT INTO ItemCategories (ChannelItemId, CategoryId)
-                    SELECT @ChannelItemId, @CategoryId
-                    WHERE NOT EXISTS (SELECT 1 FROM ItemCategories WHERE ChannelItemId = @ChannelItemId AND CategoryId = @CategoryId);"
-                |> Db.setParams [ "ChannelItemId", SqlType.Int64 id; "CategoryId", SqlType.Int categoryId ]
-                |> Db.exec
+                        SELECT @ChannelItemId, @CategoryId
+                        WHERE NOT EXISTS (SELECT 1 FROM ItemCategories WHERE ChannelItemId = @ChannelItemId AND CategoryId = @CategoryId);"
 
-            if channelItem.Categories.IsSome then
-                channelItem.Categories.Value
-                |> Seq.map getCategoryId
-                |> Seq.iter addCategoryToChannelItem
+            use conn = connectionService.GetConnection()
 
-            tran.TryCommit()
+            conn
+            |> Db.batch (fun tran ->
+                use cmdInsertChannelItems = getCmdInsertChannelItems tran
+                use cmdInsertCategories = getCmdInsertCategories tran
+                use cmdInsertItemCategories = getCmdInsertItemCategories tran
+                let id = cmdInsertChannelItems |> Db.scalar Convert.ToInt64
 
-            id
+                let getCategoryId (category: string) =
+                    cmdInsertCategories
+                    |> Db.setParams [ "Name", SqlType.String category ]
+                    |> Db.scalar Convert.ToInt32
+
+                let addCategoryToChannelItem (categoryId: int) =
+                    cmdInsertItemCategories
+                    |> Db.setParams [ "ChannelItemId", SqlType.Int64 id; "CategoryId", SqlType.Int categoryId ]
+                    |> Db.exec
+
+                if channelItem.Categories.IsSome then
+                    channelItem.Categories.Value
+                    |> Seq.map getCategoryId
+                    |> Seq.iter addCategoryToChannelItem
+
+                id)
+
 
         member this.GetByCategory(categoryId: int) =
             use conn = connectionService.GetConnection()
 
-            conn
-            |> Db.newCommand
-                "SELECT  CI.Id, ChannelId, ItemId, Title, Link, Description, Content,
-                PublishingDate, IsRead, IsReadLater, IsFavorite, IsDeleted
-                FROM ChannelItems CI
-                INNER JOIN ItemCategories IC 
-                ON CI.Id = IC.ChannelItemId
-                WHERE IC.CategoryId = @CategoryId
-                ORDER BY CI.PublishingDate DESC"
-            |> Db.setParams [ "CategoryId", SqlType.Int categoryId ]
-            |> Db.query (fun reader -> getChannelItem reader)
-            |> Seq.toList
+            use cmd =
+                conn
+                |> Db.newCommand
+                    "SELECT  CI.Id, ChannelId, ItemId, Title, Link, Description, Content,
+                    PublishingDate, IsRead, IsReadLater, IsFavorite, IsDeleted
+                    FROM ChannelItems CI
+                    INNER JOIN ItemCategories IC 
+                    ON CI.Id = IC.ChannelItemId
+                    WHERE IC.CategoryId = @CategoryId
+                    ORDER BY CI.PublishingDate DESC"
+                |> Db.setParams [ "CategoryId", SqlType.Int categoryId ]
+
+            cmd |> Db.query (fun reader -> getChannelItem reader) |> Seq.toList
 
         member this.GetByChannelId(channelId: int) =
             use conn = connectionService.GetConnection()
-            printfn "channelId: %i" channelId
 
-            conn
-            |> Db.newCommand (selectSql "ChannelId= @ChannelId AND IsRead = 0")
-            |> Db.setParams [ "ChannelId", SqlType.Int channelId ]
-            |> Db.query (fun reader -> getChannelItem reader)
-            |> Seq.toList
+            use cmd =
+                conn
+                |> Db.newCommand (selectSql "ChannelId= @ChannelId AND IsRead = 0")
+                |> Db.setParams [ "ChannelId", SqlType.Int channelId ]
+
+            cmd |> Db.query (fun reader -> getChannelItem reader) |> Seq.toList
 
         member this.GetByDeleted(isDeleted: bool) =
             use conn = connectionService.GetConnection()
 
-            conn
-            |> Db.newCommand (selectSql "IsDeleted= @IsDeleted")
-            |> Db.setParams [ "IsDeleted", SqlType.Boolean isDeleted ]
-            |> Db.query (fun reader -> getChannelItem reader)
-            |> Seq.toList
+            use cmd =
+                conn
+                |> Db.newCommand (selectSql "IsDeleted= @IsDeleted")
+                |> Db.setParams [ "IsDeleted", SqlType.Boolean isDeleted ]
+
+            cmd |> Db.query (fun reader -> getChannelItem reader) |> Seq.toList
 
         member this.GetByFavorite(isFavorite: bool) =
             use conn = connectionService.GetConnection()
 
-            conn
-            |> Db.newCommand (selectSql "IsFavorite= @IsFavorite")
-            |> Db.setParams [ "IsFavorite", SqlType.Boolean isFavorite ]
-            |> Db.query (fun reader -> getChannelItem reader)
-            |> Seq.toList
+            use cmd =
+                conn
+                |> Db.newCommand (selectSql "IsFavorite= @IsFavorite")
+                |> Db.setParams [ "IsFavorite", SqlType.Boolean isFavorite ]
+
+            cmd |> Db.query (fun reader -> getChannelItem reader) |> Seq.toList
 
         member this.GetByGroupId(groupId: int) =
             use conn = connectionService.GetConnection()
 
-            conn
-            |> Db.newCommand
-                "SELECT CI.Id, ChannelId, ItemId, CI.Title, CI.Link, CI.Description, 
-                CI.Content, PublishingDate, IsRead, IsReadLater, IsFavorite, IsDeleted
-                FROM ChannelItems CI
-                INNER JOIN Channels C
-                ON CI.ChannelId = C.Id
-                WHERE C.ChannelsGroupId = @ChannelsGroupId  AND IsRead = 0
-                ORDER BY CI.PublishingDate DESC"
-            |> Db.setParams [ "ChannelsGroupId", SqlType.Int groupId ]
-            |> Db.query (fun reader -> getChannelItem reader)
-            |> Seq.toList
+            use cmd =
+                conn
+                |> Db.newCommand
+                    "SELECT CI.Id, ChannelId, ItemId, CI.Title, CI.Link, CI.Description, 
+                    CI.Content, PublishingDate, IsRead, IsReadLater, IsFavorite, IsDeleted
+                    FROM ChannelItems CI
+                    INNER JOIN Channels C
+                    ON CI.ChannelId = C.Id
+                    WHERE C.ChannelsGroupId = @ChannelsGroupId  AND IsRead = 0
+                    ORDER BY CI.PublishingDate DESC"
+                |> Db.setParams [ "ChannelsGroupId", SqlType.Int groupId ]
+
+            cmd |> Db.query (fun reader -> getChannelItem reader) |> Seq.toList
 
         member this.GetByRead(isRead: bool) =
             use conn = connectionService.GetConnection()
 
-            conn
-            |> Db.newCommand (selectSql "IsRead= @IsRead")
-            |> Db.setParams [ "IsRead", SqlType.Boolean isRead ]
-            |> Db.query (fun reader -> getChannelItem reader)
-            |> Seq.toList
+            use cmd =
+                conn
+                |> Db.newCommand (selectSql "IsRead= @IsRead")
+                |> Db.setParams [ "IsRead", SqlType.Boolean isRead ]
+
+            cmd |> Db.query (fun reader -> getChannelItem reader) |> Seq.toList
 
         member this.GetByReadLater(isReadLater: bool) =
             use conn = connectionService.GetConnection()
 
-            conn
-            |> Db.newCommand (selectSql "IsReadLater= @IsReadLater")
-            |> Db.setParams [ "IsReadLater", SqlType.Boolean isReadLater ]
-            |> Db.query (fun reader -> getChannelItem reader)
-            |> Seq.toList
+            use cmd =
+                conn
+                |> Db.newCommand (selectSql "IsReadLater= @IsReadLater")
+                |> Db.setParams [ "IsReadLater", SqlType.Boolean isReadLater ]
+
+            cmd |> Db.query (fun reader -> getChannelItem reader) |> Seq.toList
 
         member this.SetDeleted(id: int64, isDeleted: bool) =
             use conn = connectionService.GetConnection()
 
-            conn
-            |> Db.newCommand "UPDATE ChannelItems SET IsDeleted = @IsDeleted WHERE Id = @Id"
-            |> Db.setParams [ "Id", SqlType.Int64 id; "IsDeleted", SqlType.Boolean isDeleted ]
-            |> Db.exec
+            use cmd =
+                conn
+                |> Db.newCommand "UPDATE ChannelItems SET IsDeleted = @IsDeleted WHERE Id = @Id"
+                |> Db.setParams [ "Id", SqlType.Int64 id; "IsDeleted", SqlType.Boolean isDeleted ]
+
+            cmd |> Db.exec
 
         member this.SetFavorite(id: int64, isFavorite: bool) =
             use conn = connectionService.GetConnection()
 
-            conn
-            |> Db.newCommand "UPDATE ChannelItems SET IsFavorite = @IsFavorite WHERE Id = @Id"
-            |> Db.setParams [ "Id", SqlType.Int64 id; "IsFavorite", SqlType.Boolean isFavorite ]
-            |> Db.exec
+            use cmd =
+                conn
+                |> Db.newCommand "UPDATE ChannelItems SET IsFavorite = @IsFavorite WHERE Id = @Id"
+                |> Db.setParams [ "Id", SqlType.Int64 id; "IsFavorite", SqlType.Boolean isFavorite ]
+
+            cmd |> Db.exec
 
         member this.SetRead(id: int64, isRead: bool) =
             use conn = connectionService.GetConnection()
 
-            conn
-            |> Db.newCommand "UPDATE ChannelItems SET IsRead = @IsRead WHERE Id = @Id"
-            |> Db.setParams [ "Id", SqlType.Int64 id; "IsRead", SqlType.Boolean isRead ]
-            |> Db.exec
+            use cmd =
+                conn
+                |> Db.newCommand "UPDATE ChannelItems SET IsRead = @IsRead WHERE Id = @Id"
+                |> Db.setParams [ "Id", SqlType.Int64 id; "IsRead", SqlType.Boolean isRead ]
+
+            cmd |> Db.exec
 
         member this.SetReadAll(isRead: bool) =
             use conn = connectionService.GetConnection()
 
-            conn
-            |> Db.newCommand "UPDATE ChannelItems SET IsRead = @IsRead"
-            |> Db.setParams [ "IsRead", SqlType.Boolean isRead ]
-            |> Db.exec
+            use cmd =
+                conn
+                |> Db.newCommand "UPDATE ChannelItems SET IsRead = @IsRead"
+                |> Db.setParams [ "IsRead", SqlType.Boolean isRead ]
+
+            cmd |> Db.exec
 
         member this.SetReadByChannelId(channelId: int, isRead: bool) =
             use conn = connectionService.GetConnection()
 
-            conn
-            |> Db.newCommand "UPDATE ChannelItems SET IsRead = @IsRead WHERE ChannelId = @ChannelId"
-            |> Db.setParams [ "ChannelId", SqlType.Int channelId; "IsRead", SqlType.Boolean isRead ]
-            |> Db.exec
+            use cmd =
+                conn
+                |> Db.newCommand "UPDATE ChannelItems SET IsRead = @IsRead WHERE ChannelId = @ChannelId"
+                |> Db.setParams [ "ChannelId", SqlType.Int channelId; "IsRead", SqlType.Boolean isRead ]
+
+            cmd |> Db.exec
 
         member this.SetReadByGroupId(groupId: int, isRead: bool) =
             use conn = connectionService.GetConnection()
 
-            conn
-            |> Db.newCommand
-                "UPDATE ChannelItems SET IsRead = @IsRead
-                FROM ChannelItems CI
-                INNER JOIN Channels C
-                ON CI.ChannelId = C.Id
-                WHERE C.ChannelsGroupId = @ChannelsGroupId"
-            |> Db.setParams [ "ChannelsGroupId", SqlType.Int groupId; "IsRead", SqlType.Boolean isRead ]
-            |> Db.exec
+            use cmd =
+                conn
+                |> Db.newCommand
+                    "UPDATE ChannelItems SET IsRead = @IsRead
+                    FROM ChannelItems CI
+                    INNER JOIN Channels C
+                    ON CI.ChannelId = C.Id
+                    WHERE C.ChannelsGroupId = @ChannelsGroupId"
+                |> Db.setParams [ "ChannelsGroupId", SqlType.Int groupId; "IsRead", SqlType.Boolean isRead ]
+
+            cmd |> Db.exec
 
         member this.SetReadLater(id: int64, isReadLater: bool) =
             use conn = connectionService.GetConnection()
 
-            conn
-            |> Db.newCommand "UPDATE ChannelItems SET IsReadLater = @IsReadLater WHERE Id = @Id"
-            |> Db.setParams [ "Id", SqlType.Int64 id; "IsReadLater", SqlType.Boolean isReadLater ]
-            |> Db.exec
+            use cmd =
+                conn
+                |> Db.newCommand "UPDATE ChannelItems SET IsReadLater = @IsReadLater WHERE Id = @Id"
+                |> Db.setParams [ "Id", SqlType.Int64 id; "IsReadLater", SqlType.Boolean isReadLater ]
+
+            cmd |> Db.exec
 
 type ICategories =
     abstract member GetByChannelItem: int64 -> Category list
@@ -555,30 +618,34 @@ type Categories(connectionService: IConnectionService) =
         member this.Get(categoryId: int) =
             use conn = connectionService.GetConnection()
 
-            conn
-            |> Db.newCommand "SELECT Id, Name FROM Categories WHERE Id = @Id"
-            |> Db.setParams [ "Id", SqlType.Int categoryId ]
-            |> Db.query (fun reader -> getCategory reader)
-            |> Seq.tryHead
+            use cmd =
+                conn
+                |> Db.newCommand "SELECT Id, Name FROM Categories WHERE Id = @Id"
+                |> Db.setParams [ "Id", SqlType.Int categoryId ]
+
+            cmd |> Db.query (fun reader -> getCategory reader) |> Seq.tryHead
 
         member this.GetByChannelItem(channelItemId: int64) =
             use conn = connectionService.GetConnection()
 
-            conn
-            |> Db.newCommand
-                "SELECT C.Id, C.Name
-                FROM Categories C
-                INNER JOIN ItemCategories IC
-                ON C.Id = IC.CategoryId
-                WHERE IC.ChannelItemId = @ChannelItemId"
-            |> Db.setParams [ "ChannelItemId", SqlType.Int64 channelItemId ]
-            |> Db.query (fun reader -> getCategory reader)
+            use cmd =
+                conn
+                |> Db.newCommand
+                    "SELECT C.Id, C.Name
+                    FROM Categories C
+                    INNER JOIN ItemCategories IC
+                    ON C.Id = IC.CategoryId
+                    WHERE IC.ChannelItemId = @ChannelItemId"
+                |> Db.setParams [ "ChannelItemId", SqlType.Int64 channelItemId ]
+
+            cmd |> Db.query (fun reader -> getCategory reader)
 
         member this.GetByName(categoryName: string) =
             use conn = connectionService.GetConnection()
 
-            conn
-            |> Db.newCommand "SELECT Id, Name FROM Categories WHERE Name = @Name"
-            |> Db.setParams [ "Name", SqlType.String categoryName ]
-            |> Db.query (fun reader -> getCategory reader)
-            |> Seq.toList
+            use cmd =
+                conn
+                |> Db.newCommand "SELECT Id, Name FROM Categories WHERE Name = @Name"
+                |> Db.setParams [ "Name", SqlType.String categoryName ]
+
+            cmd |> Db.query (fun reader -> getCategory reader) |> Seq.toList

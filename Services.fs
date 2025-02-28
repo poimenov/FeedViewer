@@ -231,8 +231,8 @@ type HttpHandler() =
 
 type IIconDownloader =
     abstract member DownloadIconAsync: Uri option * Uri option * string -> Task<unit>
-    abstract member GetIconExtension: byte[] -> string
-    abstract member SaveIconAsync: string * Uri * string -> Task<unit>
+    abstract member GetIconExtension: byte[] -> string option
+    abstract member SaveIconAsync: string * Uri option * string -> Task<unit>
 
 type IconDownloader(http: IHttpHandler, logger: ILogger<IconDownloader>) =
     interface IIconDownloader with
@@ -263,12 +263,12 @@ type IconDownloader(http: IHttpHandler, logger: ILogger<IconDownloader>) =
                             if links.Length > 0 then
                                 do!
                                     (this :> IIconDownloader)
-                                        .SaveIconAsync(links[0].AttributeValue("href"), uri, iconsDirectoryPath)
+                                        .SaveIconAsync(links[0].AttributeValue("href"), Some(uri), iconsDirectoryPath)
                                     |> Async.AwaitTask
                         else
                             do!
                                 (this :> IIconDownloader)
-                                    .SaveIconAsync(imageUri.Value.ToString(), uri, iconsDirectoryPath)
+                                    .SaveIconAsync(imageUri.Value.ToString(), None, iconsDirectoryPath)
                                 |> Async.AwaitTask
                     | _ -> ()
 
@@ -282,7 +282,7 @@ type IconDownloader(http: IHttpHandler, logger: ILogger<IconDownloader>) =
             }
             |> Async.StartAsTask
 
-        member this.GetIconExtension(fileBytes: byte array) : string =
+        member this.GetIconExtension(fileBytes: byte array) : string option =
             let jpegMagic = [| 0xFFuy; 0xD8uy |]
             let pngMagic = [| 0x89uy; 0x50uy; 0x4Euy; 0x47uy |]
             let gifMagic = [| 0x47uy; 0x49uy; 0x46uy; 0x38uy |]
@@ -290,44 +290,58 @@ type IconDownloader(http: IHttpHandler, logger: ILogger<IconDownloader>) =
             let bmpMagic = [| 0x42uy; 0x4Duy |]
             let webpMagic = [| 0x57uy; 0x45uy; 0x42uy; 0x50uy |]
 
-            let mutable retVal = ""
-
             if fileBytes.Length >= 4 then
                 if fileBytes.[0] = jpegMagic.[0] && fileBytes.[1] = jpegMagic.[1] then
-                    retVal <- ".jpg"
+                    Some(".jpg")
                 elif fileBytes.[0] = pngMagic.[0] && fileBytes.[1] = pngMagic.[1] then
-                    retVal <- ".png"
+                    Some(".png")
                 elif fileBytes.[0] = gifMagic.[0] && fileBytes.[1] = gifMagic.[1] then
-                    retVal <- ".gif"
+                    Some(".gif")
                 elif
                     fileBytes.[0] = icoMagic.[0]
                     && fileBytes.[1] = icoMagic.[1]
                     && fileBytes.[2] = icoMagic.[2]
                     && fileBytes.[3] = icoMagic.[3]
                 then
-                    retVal <- ".ico"
+                    Some(".ico")
                 elif fileBytes.[0] = bmpMagic.[0] && fileBytes.[1] = bmpMagic.[1] then
-                    retVal <- ".bmp"
+                    Some(".bmp")
                 elif
                     fileBytes.[0] = webpMagic.[0]
                     && fileBytes.[1] = webpMagic.[1]
                     && fileBytes.[2] = webpMagic.[2]
                     && fileBytes.[3] = webpMagic.[3]
                 then
-                    retVal <- ".webp"
+                    Some(".webp")
+                else
+                    None
+            else
+                None
 
-            retVal
-
-        member this.SaveIconAsync(url: string, host: Uri, iconsDirectoryPath: string) : Task<unit> =
+        member this.SaveIconAsync(url: string, host: Uri option, iconsDirectoryPath: string) : Task<unit> =
             async {
-                let urlToDownload = new Uri(host, url)
-                let! data = http.GetByteArrayAsync(urlToDownload.AbsoluteUri) |> Async.AwaitTask
+                let uriToDownload =
+                    match host with
+                    | Some uri -> Uri(uri, url)
+                    | None -> Uri(url)
 
-                if data.Length > 0 then
-                    let ext = (this :> IIconDownloader).GetIconExtension data
-                    let fileName = $"{host.Host}{ext}"
-                    let filePath = Path.Combine(iconsDirectoryPath, fileName)
-                    File.WriteAllBytes(filePath, data)
+                try
+                    let! data = http.GetByteArrayAsync(uriToDownload.AbsoluteUri) |> Async.AwaitTask
+
+                    if data.Length > 0 then
+                        let ext = (this :> IIconDownloader).GetIconExtension data
+
+                        if ext.IsSome then
+                            let fileName = $"{uriToDownload.Host}{ext}"
+                            let filePath = Path.Combine(iconsDirectoryPath, fileName)
+                            File.WriteAllBytes(filePath, data)
+                with ex ->
+                    Debug.WriteLine(ex)
+
+                    logger.LogError(
+                        ex,
+                        $"uriToDownload = {uriToDownload.AbsoluteUri}, ThreadId = {Thread.CurrentThread.ManagedThreadId}"
+                    )
             }
             |> Async.StartAsTask
 
@@ -342,6 +356,8 @@ type ChannelReader
         channelItems: IChannelItems,
         logger: ILogger<ChannelReader>
     ) =
+    let locker = obj ()
+
     interface IChannelReader with
         member this.ReadChannelAsync(channelId: int, iconsDirectoryPath: string) : Task<Channel> =
             async {
@@ -355,26 +371,43 @@ type ChannelReader
                         $"Start read url = {channel.Value.Url}, ThreadId = {Thread.CurrentThread.ManagedThreadId}"
                     )
 
-                    let mutable feed: Feed option = None
+                    // let mutable feed: Feed option = None
 
-                    try
-                        let! result = http.GetFeedAsync(channel.Value.Url) |> Async.AwaitTask
-                        feed <- Some result
-                    with ex ->
-                        let! feedLinks = http.GetFeedUrlsFromUrlAsync(channel.Value.Url) |> Async.AwaitTask
+                    // try
+                    //     let! result = http.GetFeedAsync(channel.Value.Url) |> Async.AwaitTask
+                    //     feed <- Some result
+                    // with ex ->
+                    //     let! feedLinks = http.GetFeedUrlsFromUrlAsync(channel.Value.Url) |> Async.AwaitTask
 
-                        if feedLinks.Length > 0 then
-                            let! result = http.GetFeedAsync(feedLinks[0]) |> Async.AwaitTask
-                            feed <- Some result
-                            channel.Value.Url <- feedLinks[0]
+                    //     if feedLinks.Length > 0 then
+                    //         let! result = http.GetFeedAsync(feedLinks[0]) |> Async.AwaitTask
+                    //         feed <- Some result
+                    //         channel.Value.Url <- feedLinks[0]
+
+                    let getFeed =
+                        task {
+                            try
+                                let! result = http.GetFeedAsync(channel.Value.Url) |> Async.AwaitTask
+                                return Some result
+                            with ex ->
+                                let! feedLinks = http.GetFeedUrlsFromUrlAsync(channel.Value.Url) |> Async.AwaitTask
+
+                                if feedLinks.Length > 0 then
+                                    let! result = http.GetFeedAsync(feedLinks[0]) |> Async.AwaitTask
+                                    channel.Value.Url <- feedLinks[0]
+                                    return Some result
+                                else
+                                    return None
+                        }
+
+                    let feed = getFeed.Result
 
                     if feed.IsSome then
-                        let mutable imageUrl: Uri option = None
-
-                        if not (String.IsNullOrEmpty(feed.Value.ImageUrl)) then
-                            imageUrl <- Some(Uri(feed.Value.ImageUrl))
-
-                        let mutable siteUri: Uri option = None
+                        let imageUrl =
+                            if String.IsNullOrEmpty(feed.Value.ImageUrl) then
+                                None
+                            else
+                                Some(Uri(feed.Value.ImageUrl))
 
                         let siteLink =
                             if channel.Value.Link.IsSome then
@@ -382,62 +415,72 @@ type ChannelReader
                             else
                                 channel.Value.Link.Value
 
-                        if not (String.IsNullOrEmpty(siteLink)) then
-                            siteUri <- Some(Uri(siteLink))
+                        let siteUri =
+                            if String.IsNullOrEmpty(siteLink) then
+                                None
+                            else
+                                Some(Uri(siteLink))
 
                         do!
                             iconDownloader.DownloadIconAsync(imageUrl, siteUri, iconsDirectoryPath)
                             |> Async.AwaitTask
 
-                        if not (String.IsNullOrEmpty(feed.Value.Title)) then
-                            channel.Value.Title <- feed.Value.Title
+                        lock locker (fun () ->
+                            if not (String.IsNullOrEmpty(feed.Value.Title)) then
+                                channel.Value.Title <- feed.Value.Title
 
-                        if String.IsNullOrEmpty(feed.Value.Link) then
-                            channel.Value.Link <- Some(feed.Value.Link)
-                        else
-                            channel.Value.Link <- Some(siteLink)
+                            if String.IsNullOrEmpty(feed.Value.Link) then
+                                channel.Value.Link <- Some(feed.Value.Link)
+                            else
+                                channel.Value.Link <- Some(siteLink)
 
-                        if not (String.IsNullOrEmpty(feed.Value.Description)) then
-                            channel.Value.Description <- Some(feed.Value.Description)
+                            if not (String.IsNullOrEmpty(feed.Value.Description)) then
+                                channel.Value.Description <- Some(feed.Value.Description)
 
-                        if not (String.IsNullOrEmpty(feed.Value.Language)) then
-                            channel.Value.Language <- Some(feed.Value.Language)
+                            if not (String.IsNullOrEmpty(feed.Value.Language)) then
+                                channel.Value.Language <- Some(feed.Value.Language)
 
-                        if not (String.IsNullOrEmpty(feed.Value.ImageUrl)) then
-                            channel.Value.ImageUrl <- Some(feed.Value.ImageUrl)
+                            if not (String.IsNullOrEmpty(feed.Value.ImageUrl)) then
+                                channel.Value.ImageUrl <- Some(feed.Value.ImageUrl)
 
-                        channels.Update(channel.Value)
+                            Debug.WriteLine("start update channel")
+                            channels.Update(channel.Value)
+                            Debug.WriteLine("end update channel")
 
-                        feed.Value.Items
-                        |> Seq.map (fun x ->
-                            let publishingDate =
-                                if x.PublishingDate.HasValue then
-                                    Some(x.PublishingDate.Value)
-                                else
-                                    None
+                            feed.Value.Items
+                            |> Seq.map (fun x ->
+                                let publishingDate =
+                                    if x.PublishingDate.HasValue then
+                                        Some(x.PublishingDate.Value)
+                                    else
+                                        None
 
-                            let categories =
-                                if x.Categories.Count > 0 then
-                                    Some(x.Categories |> Seq.toList)
-                                else
-                                    None
+                                let categories =
+                                    if x.Categories.Count > 0 then
+                                        Some(x.Categories |> Seq.toList)
+                                    else
+                                        None
 
-                            ChannelItem(
-                                0,
-                                channel.Value.Id,
-                                x.Id,
-                                x.Title,
-                                Some(x.Link),
-                                Some(x.Description),
-                                Some(x.Content),
-                                publishingDate,
-                                false,
-                                false,
-                                false,
-                                false,
-                                categories
-                            ))
-                        |> Seq.iter (fun x -> channelItems.Create(x) |> ignore)
+                                ChannelItem(
+                                    0,
+                                    channel.Value.Id,
+                                    x.Id,
+                                    x.Title,
+                                    Some(x.Link),
+                                    Some(x.Description),
+                                    Some(x.Content),
+                                    publishingDate,
+                                    false,
+                                    false,
+                                    false,
+                                    false,
+                                    categories
+                                ))
+                            |> Seq.iter (fun x ->
+                                Debug.WriteLine("start create channel item")
+                                Debug.WriteLine(System.Text.Json.JsonSerializer.Serialize(x))
+                                channelItems.Create(x) |> ignore
+                                Debug.WriteLine("end create channel item")))
 
                         Debug.WriteLine(
                             $"End read url = {channel.Value.Url}, ThreadId = {Thread.CurrentThread.ManagedThreadId}"
