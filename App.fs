@@ -392,20 +392,19 @@ let navmenus =
              groups: IChannelGroups,
              channels: IChannels,
              channelReader: IChannelReader) ->
-            // hook.AddInitializedTask(fun () ->
-            //     task {
-            //         let readChannel (id: int) =
-            //             channelReader.ReadChannelAsync(id, iconsDirectoryPath)
+            hook.AddInitializedTask(fun () ->
+                task {
+                    let readChannel (id: int) =
+                        channelReader.ReadChannelAsync(id, iconsDirectoryPath)
 
-            //         channels.GetAll()
-            //         |> Seq.map (fun c -> c.Id)
-            //         |> Seq.map readChannel
-            //         |> Seq.map Async.AwaitTask
-            //         |> Async.Parallel
-            //         |> Async.StartImmediateAsTask
-            //         |> ignore
+                    channels.GetAll()
+                    |> Seq.map (fun c -> c.Id)
+                    |> Seq.map readChannel
+                    |> Async.Parallel
+                    |> Async.StartAsTask
+                    |> ignore
 
-            //     })
+                })
 
             adaptiview () {
                 let! binding = store.IsMenuOpen.WithSetter()

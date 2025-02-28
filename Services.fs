@@ -230,15 +230,15 @@ type HttpHandler() =
             |> Async.StartAsTask
 
 type IIconDownloader =
-    abstract member DownloadIconAsync: Uri option * Uri option * string -> Task<unit>
+    abstract member DownloadIconAsync: Uri option * Uri option * string -> Async<unit>
     abstract member GetIconExtension: byte[] -> string option
-    abstract member SaveIconAsync: string * Uri option * string -> Task<unit>
+    abstract member SaveIconAsync: string * Uri option * string -> Async<unit>
 
 type IconDownloader(http: IHttpHandler, logger: ILogger<IconDownloader>) =
     interface IIconDownloader with
         member this.DownloadIconAsync
             (imageUri: Uri option, siteUri: Uri option, iconsDirectoryPath: string)
-            : Task<unit> =
+            : Async<unit> =
             async {
                 if imageUri.IsNone && siteUri.IsNone then
                     return ()
@@ -264,12 +264,11 @@ type IconDownloader(http: IHttpHandler, logger: ILogger<IconDownloader>) =
                                 do!
                                     (this :> IIconDownloader)
                                         .SaveIconAsync(links[0].AttributeValue("href"), Some(uri), iconsDirectoryPath)
-                                    |> Async.AwaitTask
                         else
                             do!
                                 (this :> IIconDownloader)
                                     .SaveIconAsync(imageUri.Value.ToString(), None, iconsDirectoryPath)
-                                |> Async.AwaitTask
+
                     | _ -> ()
 
                 with ex ->
@@ -280,7 +279,6 @@ type IconDownloader(http: IHttpHandler, logger: ILogger<IconDownloader>) =
                         $"imageUri = {imageUri}, siteUri = {siteUri}, ThreadId = {Thread.CurrentThread.ManagedThreadId}"
                     )
             }
-            |> Async.StartAsTask
 
         member this.GetIconExtension(fileBytes: byte array) : string option =
             let jpegMagic = [| 0xFFuy; 0xD8uy |]
@@ -318,7 +316,7 @@ type IconDownloader(http: IHttpHandler, logger: ILogger<IconDownloader>) =
             else
                 None
 
-        member this.SaveIconAsync(url: string, host: Uri option, iconsDirectoryPath: string) : Task<unit> =
+        member this.SaveIconAsync(url: string, host: Uri option, iconsDirectoryPath: string) : Async<unit> =
             async {
                 let uriToDownload =
                     match host with
@@ -343,10 +341,9 @@ type IconDownloader(http: IHttpHandler, logger: ILogger<IconDownloader>) =
                         $"uriToDownload = {uriToDownload.AbsoluteUri}, ThreadId = {Thread.CurrentThread.ManagedThreadId}"
                     )
             }
-            |> Async.StartAsTask
 
 type IChannelReader =
-    abstract member ReadChannelAsync: int * string -> Task<Channel>
+    abstract member ReadChannelAsync: int * string -> Async<Channel>
 
 type ChannelReader
     (
@@ -359,61 +356,64 @@ type ChannelReader
     let locker = obj ()
 
     interface IChannelReader with
-        member this.ReadChannelAsync(channelId: int, iconsDirectoryPath: string) : Task<Channel> =
+        member this.ReadChannelAsync(channelId: int, iconsDirectoryPath: string) : Async<Channel> =
             async {
-                let channel = channels.Get(channelId)
+                let _channel = channels.Get(channelId)
 
-                if channel.IsNone then
+                if _channel.IsNone then
                     return failwith "Channel not found"
+
+                let channel = _channel.Value
+
+                let toStringOption (s: string) =
+                    if String.IsNullOrWhiteSpace(s) then None else Some(s)
 
                 try
                     Debug.WriteLine(
-                        $"Start read url = {channel.Value.Url}, ThreadId = {Thread.CurrentThread.ManagedThreadId}"
+                        $"Start read url = {channel.Url}, ThreadId = {Thread.CurrentThread.ManagedThreadId}"
                     )
 
-                    // let mutable feed: Feed option = None
-
-                    // try
-                    //     let! result = http.GetFeedAsync(channel.Value.Url) |> Async.AwaitTask
-                    //     feed <- Some result
-                    // with ex ->
-                    //     let! feedLinks = http.GetFeedUrlsFromUrlAsync(channel.Value.Url) |> Async.AwaitTask
-
-                    //     if feedLinks.Length > 0 then
-                    //         let! result = http.GetFeedAsync(feedLinks[0]) |> Async.AwaitTask
-                    //         feed <- Some result
-                    //         channel.Value.Url <- feedLinks[0]
-
-                    let getFeed =
-                        task {
+                    let! _feed =
+                        async {
                             try
-                                let! result = http.GetFeedAsync(channel.Value.Url) |> Async.AwaitTask
+                                let! result = http.GetFeedAsync(channel.Url) |> Async.AwaitTask
                                 return Some result
                             with ex ->
-                                let! feedLinks = http.GetFeedUrlsFromUrlAsync(channel.Value.Url) |> Async.AwaitTask
+                                Debug.WriteLine($"Exception on load url = {channel.Url}")
+                                Debug.WriteLine(ex)
 
-                                if feedLinks.Length > 0 then
-                                    let! result = http.GetFeedAsync(feedLinks[0]) |> Async.AwaitTask
-                                    channel.Value.Url <- feedLinks[0]
-                                    return Some result
+                                if channel.Link.IsSome then
+                                    try
+                                        let! feedLinks =
+                                            http.GetFeedUrlsFromUrlAsync(channel.Link.Value) |> Async.AwaitTask
+
+                                        if feedLinks.Length > 0 then
+                                            let! result = http.GetFeedAsync(feedLinks[0]) |> Async.AwaitTask
+                                            channel.Url <- feedLinks[0]
+                                            return Some result
+                                        else
+                                            return None
+                                    with ex ->
+                                        Debug.WriteLine($"Exception on load url = {channel.Url}")
+                                        return None
                                 else
                                     return None
                         }
 
-                    let feed = getFeed.Result
+                    if _feed.IsSome then
+                        let feed = _feed.Value
 
-                    if feed.IsSome then
                         let imageUrl =
-                            if String.IsNullOrEmpty(feed.Value.ImageUrl) then
+                            if String.IsNullOrEmpty(feed.ImageUrl) then
                                 None
                             else
-                                Some(Uri(feed.Value.ImageUrl))
+                                Some(Uri(feed.ImageUrl))
 
                         let siteLink =
-                            if channel.Value.Link.IsSome then
-                                Uri(channel.Value.Link.Value).GetLeftPart(UriPartial.Authority)
+                            if channel.Link.IsSome then
+                                Uri(channel.Link.Value).GetLeftPart(UriPartial.Authority)
                             else
-                                channel.Value.Link.Value
+                                channel.Link.Value
 
                         let siteUri =
                             if String.IsNullOrEmpty(siteLink) then
@@ -421,81 +421,73 @@ type ChannelReader
                             else
                                 Some(Uri(siteLink))
 
-                        do!
-                            iconDownloader.DownloadIconAsync(imageUrl, siteUri, iconsDirectoryPath)
-                            |> Async.AwaitTask
+                        do! iconDownloader.DownloadIconAsync(imageUrl, siteUri, iconsDirectoryPath)
 
                         lock locker (fun () ->
-                            if not (String.IsNullOrEmpty(feed.Value.Title)) then
-                                channel.Value.Title <- feed.Value.Title
-
-                            if String.IsNullOrEmpty(feed.Value.Link) then
-                                channel.Value.Link <- Some(feed.Value.Link)
-                            else
-                                channel.Value.Link <- Some(siteLink)
-
-                            if not (String.IsNullOrEmpty(feed.Value.Description)) then
-                                channel.Value.Description <- Some(feed.Value.Description)
-
-                            if not (String.IsNullOrEmpty(feed.Value.Language)) then
-                                channel.Value.Language <- Some(feed.Value.Language)
-
-                            if not (String.IsNullOrEmpty(feed.Value.ImageUrl)) then
-                                channel.Value.ImageUrl <- Some(feed.Value.ImageUrl)
-
-                            Debug.WriteLine("start update channel")
-                            channels.Update(channel.Value)
-                            Debug.WriteLine("end update channel")
-
-                            feed.Value.Items
-                            |> Seq.map (fun x ->
-                                let publishingDate =
-                                    if x.PublishingDate.HasValue then
-                                        Some(x.PublishingDate.Value)
+                            if not (String.IsNullOrEmpty(feed.Title)) then
+                                channel.Title <-
+                                    if (Uri(channel.Url).Host = channel.Title) then
+                                        feed.Title
                                     else
-                                        None
+                                        channel.Title
 
-                                let categories =
-                                    if x.Categories.Count > 0 then
-                                        Some(x.Categories |> Seq.toList)
+                                channel.Link <-
+                                    if String.IsNullOrWhiteSpace(feed.Link) then
+                                        Some(siteLink)
                                     else
-                                        None
+                                        Some(feed.Link)
 
-                                ChannelItem(
-                                    0,
-                                    channel.Value.Id,
-                                    x.Id,
-                                    x.Title,
-                                    Some(x.Link),
-                                    Some(x.Description),
-                                    Some(x.Content),
-                                    publishingDate,
-                                    false,
-                                    false,
-                                    false,
-                                    false,
-                                    categories
-                                ))
-                            |> Seq.iter (fun x ->
-                                Debug.WriteLine("start create channel item")
-                                Debug.WriteLine(System.Text.Json.JsonSerializer.Serialize(x))
-                                channelItems.Create(x) |> ignore
-                                Debug.WriteLine("end create channel item")))
+                                channel.Description <- toStringOption feed.Description
+                                channel.ImageUrl <- toStringOption feed.ImageUrl
+                                channel.Language <- toStringOption feed.Language
+                                channels.Update(channel) |> ignore
+
+                                feed.Items
+                                |> Seq.map (fun x ->
+                                    let publishingDate =
+                                        if x.PublishingDate.HasValue then
+                                            Some(x.PublishingDate.Value)
+                                        else
+                                            None
+
+                                    let categories =
+                                        if x.Categories.Count > 0 then
+                                            Some(x.Categories |> Seq.toList)
+                                        else
+                                            None
+
+                                    ChannelItem(
+                                        0,
+                                        channel.Id,
+                                        x.Id,
+                                        x.Title,
+                                        toStringOption x.Link,
+                                        toStringOption x.Description,
+                                        toStringOption x.Content,
+                                        publishingDate,
+                                        false,
+                                        false,
+                                        false,
+                                        false,
+                                        categories
+                                    ))
+
+                                |> Seq.toList
+                                |> List.iter (fun (item) -> channelItems.Create(item) |> ignore))
 
                         Debug.WriteLine(
-                            $"End read url = {channel.Value.Url}, ThreadId = {Thread.CurrentThread.ManagedThreadId}"
+                            $"End read url = {channel.Url}, ThreadId = {Thread.CurrentThread.ManagedThreadId}"
                         )
 
                     else
-                        Debug.WriteLine($"Can't load feed from url = {channel.Value.Url}")
-                        logger.LogInformation($"Can't load feed from url = {channel.Value.Url}")
+                        Debug.WriteLine($"Can't load feed from url = {channel.Url}")
+                        logger.LogInformation($"Can't load feed from url = {channel.Url}")
 
                 with ex ->
-                    Debug.WriteLine($"Url = {channel.Value.Url}")
+                    Debug.WriteLine($"Url = {channel.Url}")
                     Debug.WriteLine(ex)
 
-                    logger.LogError(ex, $"Url = {channel.Value.Url}, ThreadId = {Thread.CurrentThread.ManagedThreadId}")
+                    logger.LogError(ex, $"Url = {channel.Url}, ThreadId = {Thread.CurrentThread.ManagedThreadId}")
 
-                return channel.Value
+                return channel
             }
-            |> Async.StartAsTask

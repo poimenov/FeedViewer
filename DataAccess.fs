@@ -16,6 +16,11 @@ let ApplicationName = "FeedViewer"
 [<Literal>]
 let private DataBaseFileName = "FeedViewer.db"
 
+let getNullableString (value: string option) =
+    match value with
+    | Some value -> SqlType.String value
+    | None -> SqlType.Null
+
 let private CreateDatabaseScript =
     use stream =
         new StreamReader(
@@ -197,11 +202,11 @@ type Channels(connectionService: IConnectionService) =
                       else
                           SqlType.Int channel.GroupId.Value
                       "Title", SqlType.String channel.Title
-                      "Description", SqlType.String(defaultArg channel.Description null)
-                      "Link", SqlType.String(defaultArg channel.Link null)
+                      "Description", getNullableString channel.Description
+                      "Link", getNullableString channel.Link
                       "Url", SqlType.String channel.Url
-                      "ImageUrl", SqlType.String(defaultArg channel.ImageUrl null)
-                      "Language", SqlType.String(defaultArg channel.Language null) ]
+                      "ImageUrl", getNullableString channel.ImageUrl
+                      "Language", getNullableString channel.Language ]
 
             cmd |> Db.scalar Convert.ToInt32
 
@@ -317,11 +322,11 @@ type Channels(connectionService: IConnectionService) =
                       else
                           SqlType.Int channel.GroupId.Value
                       "Title", SqlType.String channel.Title
-                      "Description", SqlType.String(defaultArg channel.Description null)
-                      "Link", SqlType.String(defaultArg channel.Link null)
+                      "Description", getNullableString channel.Description
+                      "Link", getNullableString channel.Link
                       "Url", SqlType.String channel.Url
-                      "ImageUrl", SqlType.String(defaultArg channel.ImageUrl null)
-                      "Language", SqlType.String(defaultArg channel.Language null) ]
+                      "ImageUrl", getNullableString channel.ImageUrl
+                      "Language", getNullableString channel.Language ]
 
             cmd |> Db.exec
 
@@ -386,14 +391,14 @@ type ChannelItems(connectionService: IConnectionService) =
                       "ItemId",
                       SqlType.String(
                           if String.IsNullOrWhiteSpace(channelItem.ItemId) then
-                              defaultArg channelItem.Link (System.Guid.NewGuid().ToString())
+                              defaultArg channelItem.Link channelItem.Title
                           else
                               channelItem.ItemId
                       )
                       "Title", SqlType.String channelItem.Title
-                      "Description", SqlType.String(defaultArg channelItem.Description null)
-                      "Content", SqlType.String(defaultArg channelItem.Content null)
-                      "Link", SqlType.String(defaultArg channelItem.Link null)
+                      "Description", getNullableString channelItem.Description
+                      "Content", getNullableString channelItem.Content
+                      "Link", getNullableString channelItem.Link
                       "PublishingDate",
                       if channelItem.PublishingDate.IsNone then
                           SqlType.Null
