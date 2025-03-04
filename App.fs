@@ -13,6 +13,8 @@ open System.IO
 open Microsoft.AspNetCore.Components.Web.Virtualization
 open Microsoft.AspNetCore.Components
 open Microsoft.JSInterop
+open System.Diagnostics
+open Microsoft.Extensions.Logging
 
 type public OpenLinkProvider(los: ILinkOpeningService) =
     [<JSInvokable>]
@@ -40,121 +42,137 @@ type IShareStore with
         store.CreateCVal(nameof store.SelectedChannelItem, SelectedChannelItem.NotSelected)
 
 let appHeader =
-    html.inject (fun (store: IShareStore, openService: IOpenDialogService, exportImport: IExportImportService) ->
-        FluentHeader'' {
-            FluentStack'' {
-                Orientation Orientation.Horizontal
+    html.inject
+        (fun
+            (store: IShareStore,
+             openService: IOpenDialogService,
+             exportImport: IExportImportService,
+             navigation: NavigationManager,
+             logger: ILogger<_>,
+             channelReader: IChannelReader) ->
+            FluentHeader'' {
+                FluentStack'' {
+                    Orientation Orientation.Horizontal
 
-                img {
-                    src "favicon.ico"
-                    style { height "28px" }
-                }
-
-                FluentLabel'' {
-                    Typo Typography.H2
-                    Color Color.Fill
-                    "FeedViewer"
-                }
-
-                FluentSpacer''
-
-                adapt {
-                    let! isOpen = store.IsSettingsOpen.WithSetter()
-
-                    FluentDesignTheme'' {
-                        StorageName "theme"
-                        Mode store.Theme.Value
-
-                        OnLoaded(fun args ->
-                            if args.IsDark then
-                                store.Theme.Publish(DesignThemeModes.Dark))
+                    img {
+                        src "favicon.ico"
+                        style { height "28px" }
                     }
 
-                    FluentButton'' {
-                        Id "SettingsMenuButton"
-                        Appearance Appearance.Accent
-                        IconStart(Icons.Regular.Size20.Settings())
-                        OnClick(fun _ -> store.IsSettingsOpen.Publish(not))
+                    FluentLabel'' {
+                        Typo Typography.H2
+                        Color Color.Fill
+                        "FeedViewer"
                     }
 
-                    FluentMenu'' {
-                        Anchor "SettingsMenuButton"
-                        Open' isOpen
-                        UseMenuService false
+                    FluentSpacer''
 
-                        FluentMenuItem'' {
-                            OnClick(fun _ ->
-                                let folder = openService.OpenFolder(title = "Select folder", multiSelect = false)
+                    adapt {
+                        let! isOpen = store.IsSettingsOpen.WithSetter()
 
-                                if folder.Any() then
-                                    Path.Combine(folder.First(), "FeedViewer.opml") |> exportImport.Export)
+                        FluentDesignTheme'' {
+                            StorageName "theme"
+                            Mode store.Theme.Value
 
-                            "Export"
+                            OnLoaded(fun args ->
+                                if args.IsDark then
+                                    store.Theme.Publish(DesignThemeModes.Dark))
+                        }
 
-                            span {
-                                slot' "start"
+                        FluentButton'' {
+                            Id "SettingsMenuButton"
+                            Appearance Appearance.Accent
+                            IconStart(Icons.Regular.Size20.Settings())
+                            OnClick(fun _ -> store.IsSettingsOpen.Publish(not))
+                        }
 
-                                FluentIcon'' {
+                        FluentMenu'' {
+                            Anchor "SettingsMenuButton"
+                            Open' isOpen
+                            UseMenuService false
+
+                            FluentMenuItem'' {
+                                OnClick(fun _ ->
+                                    let folder = openService.OpenFolder(title = "Select folder", multiSelect = false)
+
+                                    if folder.Any() then
+                                        Path.Combine(folder.First(), "FeedViewer.opml") |> exportImport.Export)
+
+                                "Export"
+
+                                span {
                                     slot' "start"
-                                    color Color.Neutral
-                                    Value(Icons.Regular.Size20.ArrowExport())
+
+                                    FluentIcon'' {
+                                        slot' "start"
+                                        color Color.Neutral
+                                        Value(Icons.Regular.Size20.ArrowExport())
+                                    }
+                                }
+                            }
+
+                            FluentMenuItem'' {
+                                OnClick(fun _ ->
+                                    let file =
+                                        openService.OpenFile(
+                                            title = "Select opml file",
+                                            multiSelect = false,
+                                            filters = [| ("Opml file", [| "opml" |]) |]
+                                        )
+
+                                    if file.Any() then
+                                        file.First() |> exportImport.Import
+
+                                        Async.StartWithContinuations(
+                                            channelReader.ReadAllChannelsAsync(),
+                                            (fun _ -> navigation.NavigateTo("/channel/all")),
+                                            (fun ex ->
+                                                printfn "%A" ex
+                                                logger.LogError(ex, "Error in App.navmenus")),
+                                            (fun _ -> ())
+                                        ))
+
+                                "Import"
+
+                                span {
+                                    slot' "start"
+
+                                    FluentIcon'' {
+                                        slot' "start"
+                                        color Color.Neutral
+                                        Value(Icons.Regular.Size20.ArrowImport())
+                                    }
+                                }
+                            }
+
+                            FluentMenuItem'' {
+                                OnClick(fun _ ->
+                                    store.Theme.Publish(
+                                        if store.Theme.Value = DesignThemeModes.Dark then
+                                            DesignThemeModes.Light
+                                        else
+                                            DesignThemeModes.Dark
+                                    ))
+
+                                if store.Theme.Value = DesignThemeModes.Dark then
+                                    "Switch to Light Mode"
+                                else
+                                    "Switch to Dark Mode"
+
+                                span {
+                                    slot' "start"
+
+                                    FluentIcon'' {
+                                        slot' "start"
+                                        color Color.Neutral
+                                        Value(Icons.Regular.Size20.DarkTheme())
+                                    }
                                 }
                             }
                         }
-
-                        FluentMenuItem'' {
-                            OnClick(fun _ ->
-                                let file =
-                                    openService.OpenFile(
-                                        title = "Select opml file",
-                                        multiSelect = false,
-                                        filters = [| ("Opml file", [| "opml" |]) |]
-                                    )
-
-                                if file.Any() then
-                                    file.First() |> exportImport.Import)
-
-                            "Import"
-
-                            span {
-                                slot' "start"
-
-                                FluentIcon'' {
-                                    slot' "start"
-                                    color Color.Neutral
-                                    Value(Icons.Regular.Size20.ArrowImport())
-                                }
-                            }
-                        }
-
-                        FluentMenuItem'' {
-                            OnClick(fun _ ->
-                                store.Theme.Publish(
-                                    if store.Theme.Value = DesignThemeModes.Dark then
-                                        DesignThemeModes.Light
-                                    else
-                                        DesignThemeModes.Dark
-                                ))
-
-                            if store.Theme.Value = DesignThemeModes.Dark then
-                                "Switch to Light Mode"
-                            else
-                                "Switch to Dark Mode"
-
-                            span {
-                                slot' "start"
-
-                                FluentIcon'' {
-                                    slot' "start"
-                                    color Color.Neutral
-                                    Value(Icons.Regular.Size20.DarkTheme())
-                                }
-                            }
-                        }
                     }
                 }
-            }
-        })
+            })
 
 let appFooter =
     html.inject (fun (los: ILinkOpeningService, hook: IComponentHook, jsRuntime: IJSRuntime) ->
@@ -353,12 +371,6 @@ let contentPage (id: channelId) =
                 }
             })
 
-let iconsDirectoryPath =
-    let assemblyFolderPath =
-        System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location)
-
-    Path.Combine(Path.Combine(assemblyFolderPath, "wwwroot"), "icons")
-
 let getChannelIcon (channel: Channel) =
     let host = Uri(channel.Url).Host
     let files = Directory.GetFiles(iconsDirectoryPath, $"{host}.*")
@@ -370,8 +382,6 @@ let getChannelIcon (channel: Channel) =
             "icons/rss-button-orange.32.png"
 
     Icon(String.Empty, IconVariant.Regular, IconSize.Size20, $"<img src=\"{filePath}\"  style=\"width: 100%%;\" />")
-
-
 
 let getNavLinks (channels: list<Channel>) =
     channels
@@ -389,21 +399,21 @@ let navmenus =
         (fun
             (store: IShareStore,
              hook: IComponentHook,
+             navigation: NavigationManager,
+             logger: ILogger<_>,
              groups: IChannelGroups,
              channels: IChannels,
              channelReader: IChannelReader) ->
             hook.AddInitializedTask(fun () ->
                 task {
-                    let readChannel (id: int) =
-                        channelReader.ReadChannelAsync(id, iconsDirectoryPath)
-
-                    channels.GetAll()
-                    |> Seq.map (fun c -> c.Id)
-                    |> Seq.map readChannel
-                    |> Async.Parallel
-                    |> Async.StartAsTask
-                    |> ignore
-
+                    Async.StartWithContinuations(
+                        channelReader.ReadAllChannelsAsync(),
+                        (fun _ -> navigation.NavigateTo("/channel/all")),
+                        (fun ex ->
+                            printfn "%A" ex
+                            logger.LogError(ex, "Error in App.navmenus")),
+                        (fun _ -> ())
+                    )
                 })
 
             adaptiview () {

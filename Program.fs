@@ -8,18 +8,19 @@ open FeedViewer
 open System
 open log4net.Config
 open System.IO
+open log4net
+open System.Reflection
 
 [<EntryPoint>]
 let main args =
+    let DATA_DIRECTORY = "DATA_DIRECTORY"
     let builder = PhotinoBlazorAppBuilder.CreateDefault(args)
 
-    // let relativeConfigPath = Path.Combine("wwwroot", "log4net.config")
+    let logConfigPath =
+        let assemblyFolderPath =
+            System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location)
 
-    // let absoluteConfigPath =
-    //     let assemblyFolderPath =
-    //         System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location)
-
-    //     Path.Combine(assemblyFolderPath, relativeConfigPath)
+        Path.Combine(assemblyFolderPath, "log4net.config")
 
     builder.Services.AddFunBlazorWasm() |> ignore
     builder.Services.AddFluentUIComponents() |> ignore
@@ -44,6 +45,7 @@ let main args =
     builder.Services.AddTransient<IIconDownloader, IconDownloader>() |> ignore
     builder.Services.AddTransient<IChannelReader, ChannelReader>() |> ignore
 
+
     builder.Services.AddSingleton<IExportImportService, ExportImportService>()
     |> ignore
 
@@ -53,7 +55,11 @@ let main args =
 
     application.RootComponents.AddFunBlazor("#app", app) |> ignore
     AppDomain.CurrentDomain.SetData("DataDirectory", FeedViewer.DataAccess.AppDataPath)
-    FileInfo("log4net.config") |> XmlConfigurator.Configure |> ignore
+    Environment.SetEnvironmentVariable(DATA_DIRECTORY, FeedViewer.DataAccess.AppDataPath)
+    FileInfo logConfigPath |> XmlConfigurator.Configure |> ignore
+
+    let logger = application.Services.GetRequiredService<ILogger<_>>()
+    logger.LogInformation("Starting application")
 
     // customize window
     application.MainWindow

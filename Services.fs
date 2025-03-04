@@ -13,6 +13,12 @@ open Microsoft.Extensions.Logging
 open System.Text
 open CodeHollow.FeedReader
 
+let public iconsDirectoryPath =
+    let assemblyFolderPath =
+        System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location)
+
+    Path.Combine(Path.Combine(assemblyFolderPath, "wwwroot"), "icons")
+
 type Platform =
     | Windows
     | Linux
@@ -344,6 +350,7 @@ type IconDownloader(http: IHttpHandler, logger: ILogger<IconDownloader>) =
 
 type IChannelReader =
     abstract member ReadChannelAsync: int * string -> Async<Channel>
+    abstract member ReadAllChannelsAsync: unit -> Async<Channel array>
 
 type ChannelReader
     (
@@ -379,8 +386,8 @@ type ChannelReader
                                 let! result = http.GetFeedAsync(channel.Url) |> Async.AwaitTask
                                 return Some result
                             with ex ->
-                                Debug.WriteLine($"Exception on load url = {channel.Url}")
-                                Debug.WriteLine(ex)
+                                Debug.WriteLine($"Can't load url = {channel.Url}")
+                                Debug.WriteLine($"Exception message: {ex.Message}")
 
                                 if channel.Link.IsSome then
                                     try
@@ -393,8 +400,9 @@ type ChannelReader
                                             return Some result
                                         else
                                             return None
-                                    with ex ->
-                                        Debug.WriteLine($"Exception on load url = {channel.Url}")
+                                    with ex1 ->
+                                        Debug.WriteLine($"Can't load url = {channel.Url}")
+                                        Debug.WriteLine($"Exception message: {ex1.Message}")
                                         return None
                                 else
                                     return None
@@ -490,4 +498,18 @@ type ChannelReader
                     logger.LogError(ex, $"Url = {channel.Url}, ThreadId = {Thread.CurrentThread.ManagedThreadId}")
 
                 return channel
+            }
+
+        member this.ReadAllChannelsAsync() : Async<Channel array> =
+            async {
+                let readChannel (id: int) =
+                    (this :> IChannelReader).ReadChannelAsync(id, iconsDirectoryPath)
+
+                return!
+                    channels.GetAll()
+                    |> Seq.map (fun c -> c.Id)
+                    |> Seq.map readChannel
+                    |> Async.Parallel
+                    |> Async.StartAsTask
+                    |> Async.AwaitTask
             }
