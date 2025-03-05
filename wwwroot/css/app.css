@@ -21,7 +21,7 @@ body {
 }
 
 .content {
-    padding: 0.5rem 1.5rem;
+    padding: 2px;
     align-self: stretch !important;
     width: 100%;
 }
@@ -107,6 +107,12 @@ footer a:focus {
 
 footer a:hover {
     text-decoration: underline;
+}
+
+.navmenu {
+    height: calc(100dvh - 86px) !important;
+    overflow-y: auto;
+    overflow-x: hidden;
 }
 
 .channel-item {

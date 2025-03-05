@@ -380,6 +380,7 @@ type ChannelReader
                         $"Start read url = {channel.Url}, ThreadId = {Thread.CurrentThread.ManagedThreadId}"
                     )
 
+                    // TODO: evaluate the possibility of using https://github.com/argotic-syndication-framework/Argotic/tree/main
                     let! _feed =
                         async {
                             try

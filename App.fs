@@ -38,6 +38,9 @@ type IShareStore with
     member store.Theme = store.CreateCVal(nameof store.Theme, DesignThemeModes.Light)
     member store.LeftPaneWidth = store.CreateCVal(nameof store.LeftPaneWidth, 350)
 
+    member store.ExpandedNavGroupCount =
+        store.CreateCVal(nameof store.ExpandedNavGroupCount, 0)
+
     member store.SelectedChannelItem =
         store.CreateCVal(nameof store.SelectedChannelItem, SelectedChannelItem.NotSelected)
 
@@ -48,8 +51,8 @@ let appHeader =
              openService: IOpenDialogService,
              exportImport: IExportImportService,
              navigation: NavigationManager,
-             logger: ILogger<_>,
-             channelReader: IChannelReader) ->
+             //channelReader: IChannelReader,
+             logger: ILogger<_>) ->
             FluentHeader'' {
                 FluentStack'' {
                     Orientation Orientation.Horizontal
@@ -123,14 +126,15 @@ let appHeader =
                                     if file.Any() then
                                         file.First() |> exportImport.Import
 
-                                        Async.StartWithContinuations(
-                                            channelReader.ReadAllChannelsAsync(),
-                                            (fun _ -> navigation.NavigateTo("/channel/all")),
-                                            (fun ex ->
-                                                printfn "%A" ex
-                                                logger.LogError(ex, "Error in App.navmenus")),
-                                            (fun _ -> ())
-                                        ))
+                                // Async.StartWithContinuations(
+                                //     channelReader.ReadAllChannelsAsync(),
+                                //     (fun _ -> navigation.NavigateTo("/channel/all")),
+                                //     (fun ex ->
+                                //         printfn "%A" ex
+                                //         logger.LogError(ex, "Error in App.navmenus")),
+                                //     (fun _ -> ())
+                                // )
+                                )
 
                                 "Import"
 
@@ -418,46 +422,70 @@ let navmenus =
 
             adaptiview () {
                 let! binding = store.IsMenuOpen.WithSetter()
+                let! expGroupsCount, setExpGroupsCount = store.ExpandedNavGroupCount.WithSetter()
 
-                FluentNavMenu'' {
-                    Width 200
-                    Collapsible true
-                    Expanded' binding
+                let styleWidth =
+                    if expGroupsCount > 0 then
+                        "width: 270px;"
+                    else
+                        "width: 230px;"
 
-                    FluentNavLink'' {
-                        Href "/channel/all"
-                        Match NavLinkMatch.All
-                        Icon(Icons.Regular.Size20.Document())
-                        "All"
+                div {
+                    class' "navmenu"
+
+                    style' (
+                        if store.IsMenuOpen.Value then
+                            styleWidth
+                        else
+                            "width: 40px;"
+                    )
+
+                    FluentNavMenu'' {
+                        Width 200
+                        Collapsible true
+                        Expanded' binding
+
+                        FluentNavLink'' {
+                            Href "/channel/all"
+                            Match NavLinkMatch.All
+                            Icon(Icons.Regular.Size20.Document())
+                            "All"
+                        }
+
+                        FluentNavLink'' {
+                            Href "/channel/starred"
+                            Match NavLinkMatch.Prefix
+                            Icon(Icons.Regular.Size20.Star())
+                            "Starred"
+                        }
+
+                        FluentNavLink'' {
+                            Href "/channel/readlater"
+                            Match NavLinkMatch.Prefix
+                            Icon(Icons.Regular.Size20.Flag())
+                            "Read Later"
+                        }
+
+                        yield!
+                            groups.GetAll()
+                            |> Seq.map (fun g ->
+                                FluentNavGroup'' {
+                                    title' g.Name
+                                    Tooltip g.Name
+                                    href $"/group/{g.Id}"
+                                    Icon(Icons.Regular.Size20.Folder())
+
+                                    ExpandedChanged(fun b ->
+                                        if b then
+                                            setExpGroupsCount (expGroupsCount + 1)
+                                        else
+                                            setExpGroupsCount (expGroupsCount - 1))
+
+                                    yield! channels.GetByGroupId(Some(g.Id)) |> getNavLinks
+                                })
+
+                        yield! channels.GetByGroupId(None) |> getNavLinks
                     }
-
-                    FluentNavLink'' {
-                        Href "/channel/starred"
-                        Match NavLinkMatch.Prefix
-                        Icon(Icons.Regular.Size20.Star())
-                        "Starred"
-                    }
-
-                    FluentNavLink'' {
-                        Href "/channel/readlater"
-                        Match NavLinkMatch.Prefix
-                        Icon(Icons.Regular.Size20.Flag())
-                        "Read Later"
-                    }
-
-                    yield!
-                        groups.GetAll()
-                        |> Seq.map (fun g ->
-                            FluentNavGroup'' {
-                                title' g.Name
-                                Tooltip g.Name
-                                href $"/group/{g.Id}"
-                                Icon(Icons.Regular.Size20.Folder())
-
-                                yield! channels.GetByGroupId(Some(g.Id)) |> getNavLinks
-                            })
-
-                    yield! channels.GetByGroupId(None) |> getNavLinks
                 }
             })
 
@@ -488,6 +516,7 @@ let app =
                 Width "100%"
                 class' "main"
                 Orientation Orientation.Horizontal
+
                 navmenus
 
                 FluentBodyContent'' {
