@@ -21,6 +21,7 @@ CREATE TABLE "ChannelItems" (
     "ItemId" TEXT NOT NULL,
     "Title" TEXT NOT NULL,
     "Link" TEXT NULL,
+    "ThumbnailUrl" TEXT NULL,
     "Description" TEXT NULL,
     "Content" TEXT NULL,
     "PublishingDate" TEXT NULL,

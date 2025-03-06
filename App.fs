@@ -326,7 +326,7 @@ let contentPage (id: channelId) =
                                                 div {
                                                     class' "channel-item-description"
 
-                                                    match item.DescriptionImgSrc() with
+                                                    match item.ThumbnailUrl with
                                                     | Some url ->
                                                         img {
                                                             src url

@@ -12,6 +12,7 @@ open System.Threading.Tasks
 open Microsoft.Extensions.Logging
 open System.Text
 open CodeHollow.FeedReader
+open System.Collections.Generic
 
 let public iconsDirectoryPath =
     let assemblyFolderPath =
@@ -412,6 +413,14 @@ type ChannelReader
                     if _feed.IsSome then
                         let feed = _feed.Value
 
+                        let formatAtts (source: string) =
+                            let doc = XDocument.Parse(source)
+                            doc.Root.Attributes() |> Seq.map (fun (att) -> att.Value) |> String.concat " "
+
+                        Debug.WriteLine(
+                            $"Title = {feed.Title}, Url = {channel.Url} Type = {feed.Type}, Attributes = {formatAtts (feed.OriginalDocument)}"
+                        )
+
                         let imageUrl =
                             if String.IsNullOrEmpty(feed.ImageUrl) then
                                 None
@@ -465,12 +474,28 @@ type ChannelReader
                                         else
                                             None
 
+                                    let thumbnailUrl =
+                                        if not(String.IsNullOrWhiteSpace(x.Description)) then
+                                            try
+                                                let doc = HtmlDocument.Parse(x.Description)
+                                                let img = doc.Descendants("img") |> Seq.tryHead
+
+                                                if img.IsSome then
+                                                    Some(img.Value.AttributeValue("src"))
+                                                else
+                                                    None
+                                            with _ ->
+                                                None
+                                        else
+                                            None                                    
+
                                     ChannelItem(
                                         0,
                                         channel.Id,
                                         x.Id,
                                         x.Title,
                                         toStringOption x.Link,
+                                        thumbnailUrl,
                                         toStringOption x.Description,
                                         toStringOption x.Content,
                                         publishingDate,

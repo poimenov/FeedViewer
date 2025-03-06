@@ -46,6 +46,7 @@ type ChannelItem
         itemId: string,
         title: string,
         link: string option,
+        thumbnailUrl: string option,
         description: string option,
         content: string option,
         publishingDate: DateTime option,
@@ -60,6 +61,7 @@ type ChannelItem
     member val ItemId = itemId with get, set
     member val Title = title with get, set
     member val Link = link with get, set
+    member val ThumbnailUrl = thumbnailUrl with get, set
     member val Description = description with get, set
     member val Content = content with get, set
     member val PublishingDate = publishingDate with get, set
@@ -84,19 +86,3 @@ type ChannelItemExtensions =
             currentHtml <- Regex.Replace(currentHtml, @"<[^>]+>|&nbsp;", "").Trim()
 
         currentHtml.Substring(0, min currentHtml.Length 200)
-
-    [<Extension>]
-    static member DescriptionImgSrc(this: ChannelItem) =
-        if this.Description.IsSome then
-            try
-                let doc = HtmlDocument.Parse(this.Description.Value)
-                let img = doc.Descendants("img") |> Seq.tryHead
-
-                if img.IsSome then
-                    Some(img.Value.AttributeValue("src"))
-                else
-                    None
-            with _ ->
-                None
-        else
-            None

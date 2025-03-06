@@ -350,7 +350,7 @@ type IChannelItems =
 type ChannelItems(connectionService: IConnectionService) =
     let selectSql (where: string) =
         let sql =
-            "SELECT  Id, ChannelId, ItemId, Title, Link, Description, Content, 
+            "SELECT  Id, ChannelId, ItemId, Title, Link, ThumbnailUrl, Description, Content, 
             PublishingDate, IsRead, IsReadLater, IsFavorite, IsDeleted
             FROM ChannelItems
             WHERE {0}
@@ -365,6 +365,7 @@ type ChannelItems(connectionService: IConnectionService) =
             reader.ReadString("ItemId"),
             reader.ReadString("Title"),
             reader.ReadStringOption("Link"),
+            reader.ReadStringOption("ThumbnailUrl"),
             reader.ReadStringOption("Description"),
             reader.ReadStringOption("Content"),
             reader.ReadDateTimeOption("PublishingDate"),
@@ -381,9 +382,9 @@ type ChannelItems(connectionService: IConnectionService) =
                 tran
                 |> Db.newCommandForTransaction
                     "INSERT INTO ChannelItems
-                    (ChannelId, ItemId, Title, Description, Content, Link, PublishingDate, IsRead, IsReadLater, IsFavorite, IsDeleted)
+                    (ChannelId, ItemId, Title, Description, Content, Link, ThumbnailUrl, PublishingDate, IsRead, IsReadLater, IsFavorite, IsDeleted)
                     SELECT
-                    @ChannelId, @ItemId, @Title, @Description, @Content, @Link, @PublishingDate, @IsRead, @IsReadLater, @IsFavorite, @IsDeleted
+                    @ChannelId, @ItemId, @Title, @Description, @Content, @Link, @ThumbnailUrl, @PublishingDate, @IsRead, @IsReadLater, @IsFavorite, @IsDeleted
                     WHERE NOT EXISTS (SELECT 1 FROM ChannelItems WHERE ItemId = @ItemId);
                     SELECT Id FROM ChannelItems WHERE ItemId = @ItemId;"
                 |> Db.setParams
@@ -399,6 +400,7 @@ type ChannelItems(connectionService: IConnectionService) =
                       "Description", getNullableString channelItem.Description
                       "Content", getNullableString channelItem.Content
                       "Link", getNullableString channelItem.Link
+                      "ThumbnailUrl", getNullableString channelItem.ThumbnailUrl
                       "PublishingDate",
                       if channelItem.PublishingDate.IsNone then
                           SqlType.Null
@@ -457,7 +459,7 @@ type ChannelItems(connectionService: IConnectionService) =
             use cmd =
                 conn
                 |> Db.newCommand
-                    "SELECT  CI.Id, ChannelId, ItemId, Title, Link, Description, Content,
+                    "SELECT  CI.Id, ChannelId, ItemId, Title, Link, ThumbnailUrl, Description, Content,
                     PublishingDate, IsRead, IsReadLater, IsFavorite, IsDeleted
                     FROM ChannelItems CI
                     INNER JOIN ItemCategories IC 
@@ -504,7 +506,7 @@ type ChannelItems(connectionService: IConnectionService) =
             use cmd =
                 conn
                 |> Db.newCommand
-                    "SELECT CI.Id, ChannelId, ItemId, CI.Title, CI.Link, CI.Description, 
+                    "SELECT CI.Id, ChannelId, ItemId, CI.Title, CI.Link, CI.ThumbnailUrl, CI.Description, 
                     CI.Content, PublishingDate, IsRead, IsReadLater, IsFavorite, IsDeleted
                     FROM ChannelItems CI
                     INNER JOIN Channels C
