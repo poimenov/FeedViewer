@@ -5,7 +5,7 @@
     <NoDefaultLaunchSettingsFile>True</NoDefaultLaunchSettingsFile>
     <ApplicationIcon>wwwroot/favicon.ico</ApplicationIcon>
   </PropertyGroup>
-  <ItemGroup>
+  <ItemGroup><Compile Include="FeedExtensions.fs" />
     <Compile Include="Models.fs" />
     <EmbeddedResource Include="CreateDatabase.sql" />
     <Compile Include="DataAccess.fs" />

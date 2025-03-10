@@ -6,6 +6,10 @@ body {
     font-size: var(--type-ramp-base-font-size);
     line-height: var(--type-ramp-base-line-height);
     margin: 0;
+    -webkit-user-select: none; /* Safari */
+    -ms-user-select: none; /* IE 10 and IE 11 */
+    user-select: none; /* Standard syntax */
+    cursor: default;    
 }
 
 .main {
@@ -157,10 +161,22 @@ footer a:hover {
 .channel-item-content {
     height: 100%;
     overflow-y: auto;
-    margin-left: 10px;;
+    margin-left: 10px;
+    -webkit-user-select: auto; /* Safari */
+    -ms-user-select: unset; /* IE 10 and IE 11 */
+    user-select: auto; /* Standard syntax */
+    cursor: auto;     
 }
 
 .channel-item-content img {
     max-width: 100%;
     height: auto;    
+}
+
+.pre {
+    white-space: pre-wrap;
+    white-space: -moz-pre-wrap;
+    white-space: -pre-wrap;
+    white-space: -o-pre-wrap;
+    word-wrap: break-word;
 }
