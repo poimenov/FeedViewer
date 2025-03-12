@@ -51,8 +51,7 @@ let appHeader =
              openService: IOpenDialogService,
              exportImport: IExportImportService,
              navigation: NavigationManager,
-             //channelReader: IChannelReader,
-             logger: ILogger<_>) ->
+             channelReader: IChannelReader) ->
             FluentHeader'' {
                 FluentStack'' {
                     Orientation Orientation.Horizontal
@@ -126,15 +125,17 @@ let appHeader =
                                     if file.Any() then
                                         file.First() |> exportImport.Import
 
-                                // Async.StartWithContinuations(
-                                //     channelReader.ReadAllChannelsAsync(),
-                                //     (fun _ -> navigation.NavigateTo("/channel/all")),
-                                //     (fun ex ->
-                                //         printfn "%A" ex
-                                //         logger.LogError(ex, "Error in App.navmenus")),
-                                //     (fun _ -> ())
-                                // )
-                                )
+                                        Async.StartWithContinuations(
+                                            channelReader.ReadAllChannelsAsync(),
+                                            (fun _ ->
+                                                //refresh navmenu
+                                                store.IsMenuOpen.Publish(false)
+                                                store.IsMenuOpen.Publish(true)
+                                                //navigate to all channels
+                                                navigation.NavigateTo("/channel/all")),
+                                            (fun ex -> printfn "%A" ex),
+                                            (fun _ -> ())
+                                        ))
 
                                 "Import"
 
