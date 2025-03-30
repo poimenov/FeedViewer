@@ -1,7 +1,6 @@
 [<AutoOpen>]
 module FeedViewer.Services
 
-open FSharp.Data
 open System
 open System.Diagnostics
 open System.IO
@@ -10,9 +9,8 @@ open System.Xml.Linq
 open System.Threading
 open System.Threading.Tasks
 open Microsoft.Extensions.Logging
-open System.Text
+open FSharp.Data
 open CodeHollow.FeedReader
-open System.Collections.Generic
 
 let public iconsDirectoryPath =
     let assemblyFolderPath =

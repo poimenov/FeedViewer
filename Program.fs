@@ -1,15 +1,15 @@
 module Program
 
-open Photino.Blazor
+open System
+open System.IO
 open Microsoft.Extensions.DependencyInjection
 open Microsoft.Extensions.Logging
 open Microsoft.FluentUI.AspNetCore.Components
-open FeedViewer
-open System
 open log4net.Config
-open System.IO
-open log4net
-open System.Reflection
+open Photino.Blazor
+open FeedViewer.Application
+open FeedViewer.Services
+open FeedViewer.DataAccess
 
 [<EntryPoint>]
 let main args =
@@ -53,7 +53,7 @@ let main args =
 
     application.Services.GetRequiredService<IDataBase>().CreateDatabaseIfNotExists()
 
-    application.RootComponents.AddFunBlazor("#app", app) |> ignore
+    application.RootComponents.AddFunBlazor("#app", App.main) |> ignore
     AppDomain.CurrentDomain.SetData("DataDirectory", FeedViewer.DataAccess.AppDataPath)
     Environment.SetEnvironmentVariable(DATA_DIRECTORY, FeedViewer.DataAccess.AppDataPath)
     FileInfo logConfigPath |> XmlConfigurator.Configure |> ignore

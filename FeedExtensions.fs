@@ -3,8 +3,8 @@ namespace CodeHollow.FeedReader
 open System
 open System.Runtime.CompilerServices
 open System.Xml.Linq
-open CodeHollow.FeedReader.Feeds.MediaRSS
 open Microsoft.FSharp.Core
+open CodeHollow.FeedReader.Feeds.MediaRSS
 open FSharp.Data
 
 [<Extension>]

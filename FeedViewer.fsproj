@@ -5,13 +5,18 @@
     <NoDefaultLaunchSettingsFile>True</NoDefaultLaunchSettingsFile>
     <ApplicationIcon>wwwroot/favicon.ico</ApplicationIcon>
   </PropertyGroup>
-  <ItemGroup><Compile Include="FeedExtensions.fs" />
+  <ItemGroup>
+    <Compile Include="FeedExtensions.fs" />
     <Compile Include="Models.fs" />
     <EmbeddedResource Include="CreateDatabase.sql" />
     <Compile Include="DataAccess.fs" />
     <Compile Include="Services.fs" />
     <Compile Include="DIExtensions.fs" />
-    <Compile Include="App.fs" />
+    <Compile Include="Types.fs" />
+    <Compile Include="Navmenu.fs" />
+    <Compile Include="ContentPage.fs" />
+    <Compile Include="OrganizeFeeds.fs" />
+    <Compile Include="App.fs" />    
     <Compile Include="Program.fs" />
     <Content Update="log4net.config">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

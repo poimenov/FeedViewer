@@ -2,10 +2,9 @@
 module FeedViewer.Models
 
 open System
-open System.Web
 open System.Runtime.CompilerServices
-open FSharp.Data
 open System.Text.RegularExpressions
+open System.Web
 
 type Category(id: int, name: string) =
     member val Id = id with get, set

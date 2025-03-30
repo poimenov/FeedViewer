@@ -1,9 +1,8 @@
 namespace Microsoft.Extensions.DependencyInjection
 
 open System.Runtime.CompilerServices
-open Fun.Blazor
 open Photino.Blazor
-
+open Fun.Blazor
 
 [<Extension>]
 type FunBlazorWasmExtensions =
