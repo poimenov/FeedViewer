@@ -2,6 +2,7 @@ module Program
 
 open System
 open System.IO
+open System.Reflection
 open Microsoft.Extensions.DependencyInjection
 open Microsoft.Extensions.Logging
 open Microsoft.FluentUI.AspNetCore.Components
@@ -18,7 +19,7 @@ let main args =
 
     let logConfigPath =
         let assemblyFolderPath =
-            System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location)
+            Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)
 
         Path.Combine(assemblyFolderPath, "log4net.config")
 
@@ -45,7 +46,6 @@ let main args =
     builder.Services.AddTransient<IIconDownloader, IconDownloader>() |> ignore
     builder.Services.AddTransient<IChannelReader, ChannelReader>() |> ignore
 
-
     builder.Services.AddSingleton<IExportImportService, ExportImportService>()
     |> ignore
 
@@ -54,8 +54,8 @@ let main args =
     application.Services.GetRequiredService<IDataBase>().CreateDatabaseIfNotExists()
 
     application.RootComponents.AddFunBlazor("#app", App.main) |> ignore
-    AppDomain.CurrentDomain.SetData("DataDirectory", FeedViewer.DataAccess.AppDataPath)
-    Environment.SetEnvironmentVariable(DATA_DIRECTORY, FeedViewer.DataAccess.AppDataPath)
+    AppDomain.CurrentDomain.SetData("DataDirectory", AppDataPath)
+    Environment.SetEnvironmentVariable(DATA_DIRECTORY, AppDataPath)
     FileInfo logConfigPath |> XmlConfigurator.Configure |> ignore
 
     let logger = application.Services.GetRequiredService<ILogger<_>>()

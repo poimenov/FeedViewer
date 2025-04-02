@@ -2,11 +2,12 @@ namespace FeedViewer.Application
 
 [<AutoOpen>]
 module Types =
+    open Microsoft.AspNetCore.Components
     open Microsoft.FluentUI.AspNetCore.Components
     open Microsoft.JSInterop
     open Fun.Blazor
     open FeedViewer
-    
+
     type public OpenLinkProvider(los: ILinkOpeningService) =
         [<JSInvokable>]
         member public this.OpenLink(link: string) = los.OpenUrl link
@@ -62,3 +63,49 @@ module Types =
 
         member store.SelectedFeedChannel =
             store.CreateCVal(nameof store.SelectedFeedChannel, SelectedFeedChannel.NotSelectedChannel)
+
+    type FeedGroupDialog() =
+        inherit FunComponent()
+
+        [<Parameter>]
+        member val Content = Unchecked.defaultof<ChannelGroup> with get, set
+
+        interface IDialogContentComponent<ChannelGroup> with
+            member this.Content = this.Content
+
+            member this.Content
+                with set (value) = this.Content <- value
+
+        [<CascadingParameter>]
+        member val Dialog = Unchecked.defaultof<FluentDialog> with get, set
+
+        override this.Render() =
+            adapt {
+                FluentDialogHeader'' {
+                    title' this.Dialog.Instance.Parameters.Title
+                    ShowDismiss true
+                }
+
+                FluentDialogBody'' {
+                    FluentTextField'' {
+                        label' "Group Name"
+                        value this.Content.Name
+                        ValueChanged(fun (x: string) -> this.Content.Name <- x)
+                    //OnChange(fun (x: string) -> this.Content.Name <- x)
+                    }
+                }
+
+                FluentDialogFooter'' {
+                    FluentButton'' {
+                        Appearance Appearance.Accent
+                        OnClick(fun _ -> task { this.Dialog.CloseAsync(this.Content) |> Async.AwaitTask |> ignore })
+                        "Save"
+                    }
+
+                    FluentButton'' {
+                        Appearance Appearance.Neutral
+                        OnClick(fun _ -> task { this.Dialog.CancelAsync() |> Async.AwaitTask |> ignore })
+                        "Cancel"
+                    }
+                }
+            }

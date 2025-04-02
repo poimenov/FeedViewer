@@ -206,6 +206,7 @@ module App =
                 })
 
             FluentToastProvider''
+            FluentDialogProvider''
             FluentDesignTheme'' { StorageName "theme" }
 
             FluentLayout'' {

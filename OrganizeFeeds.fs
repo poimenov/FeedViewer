@@ -51,25 +51,31 @@ module OrganizeFeeds =
                             FluentButton'' {
                                 IconStart(Icons.Regular.Size20.FolderAdd())
 
-                                // OnClick(fun _ -> async {
-                                //     let mutable newFolderName = ""
-                                //     dialogParams = DialogParameters {
-                                //         Title "New Folder"
-                                //         Height 250
-                                //         PreventDismissOnOverlayClick = true
-                                //         PreventScroll = true
-                                //     }
-                                //     let! dialogInstance = dialogs.ShowDialogAsync<SimpleCustomizedDialog>(newFolderName, dialogParams)
-                                //     let! result = dialog.Result
-                                //     if not result.Cancelled && result.Data <> null then
-                                //         newFolderName <- result.Data :?> string
-                                // })
+                                OnClick(fun _ ->
+                                    task {
+                                        let dialogParams = DialogParameters()
+                                        dialogParams.Title <- "Add New Folder"
+                                        dialogParams.Height <- "250px"
+                                        dialogParams.PreventDismissOnOverlayClick <- true
+                                        dialogParams.PreventScroll <- true
 
+                                        let! dialog =
+                                            dialogs.ShowDialogAsync<FeedGroupDialog>(
+                                                ChannelGroup(0, ""),
+                                                dialogParams
+                                            )
+                                            |> Async.AwaitTask
 
-                                // OnClick(fun _ ->
-                                //     let folder = ChannelGroup(0, "New Folder")
-                                //     groups.Create folder |> ignore
-                                //     store.FeedGroups.Publish(FeedGroups.LoadedChannelGroupList(groups.GetAll())))
+                                        let! result = dialog.Result |> Async.AwaitTask
+
+                                        if (not result.Cancelled) && (not (isNull result.Data)) then
+                                            let group = result.Data :?> ChannelGroup
+                                            groups.Create group |> ignore
+
+                                            store.FeedGroups.Publish(
+                                                FeedGroups.LoadedChannelGroupList(groups.GetAll())
+                                            )
+                                    })
 
                                 "Add Folder"
                             }
@@ -78,10 +84,37 @@ module OrganizeFeeds =
                                 IconStart(Icons.Regular.Size20.Edit())
                                 Disabled(disabledFeedGroupButtons)
 
-                                // OnClick(fun _ ->
-                                //     let folder = ChannelGroup(0, "New Folder")
-                                //     groups.Create folder |> ignore
-                                //     store.FeedGroups.Publish(FeedGroups.LoadedChannelGroupList(groups.GetAll())))
+                                OnClick(fun _ ->
+                                    task {
+                                        let dialogParams = DialogParameters()
+                                        dialogParams.Title <- "Edit Folder"
+                                        dialogParams.Height <- "250px"
+                                        dialogParams.PreventDismissOnOverlayClick <- true
+                                        dialogParams.PreventScroll <- true
+
+                                        let group =
+                                            match selectedFeedGroup with
+                                            | SelectedFeedGroup.SelectedGroup sg -> sg
+                                            | SelectedFeedGroup.NotSelectedGroup -> ChannelGroup(0, "")
+
+                                        if group.Id <> 0 then
+                                            let! dialog =
+                                                dialogs.ShowDialogAsync<FeedGroupDialog, ChannelGroup>(
+                                                    group,
+                                                    dialogParams
+                                                )
+                                                |> Async.AwaitTask
+
+                                            let! result = dialog.Result |> Async.AwaitTask
+
+                                            if (not result.Cancelled) && (not (isNull result.Data)) then
+                                                let folder = result.Data :?> ChannelGroup
+                                                groups.Update folder |> ignore
+
+                                                store.FeedGroups.Publish(
+                                                    FeedGroups.LoadedChannelGroupList(groups.GetAll())
+                                                )
+                                    })
 
                                 "Edit Folder"
                             }
@@ -90,8 +123,32 @@ module OrganizeFeeds =
                                 IconStart(Icons.Regular.Size20.Delete())
                                 Disabled(disabledFeedGroupButtons)
 
-                                // OnClick(fun _ ->
-                                //     store.FeedGroups.Publish(FeedGroups.LoadedChannelGroupList(groups.GetAll())))
+                                OnClick(fun _ ->
+                                    task {
+                                        let group =
+                                            match selectedFeedGroup with
+                                            | SelectedFeedGroup.SelectedGroup sg -> sg
+                                            | SelectedFeedGroup.NotSelectedGroup -> ChannelGroup(0, "")
+
+                                        if group.Id <> 0 then
+                                            let! dialog =
+                                                dialogs.ShowConfirmationAsync(
+                                                    $"Folder \"{group.Name}\" will be removed",
+                                                    "Are you sure?",
+                                                    "Cancel",
+                                                    "Remove current group"
+                                                )
+                                                |> Async.AwaitTask
+
+                                            let! result = dialog.Result |> Async.AwaitTask
+
+                                            if not result.Cancelled then
+                                                groups.Delete group.Id |> ignore
+
+                                                store.FeedGroups.Publish(
+                                                    FeedGroups.LoadedChannelGroupList(groups.GetAll())
+                                                )
+                                    })
 
                                 "Remove Folder"
                             }
