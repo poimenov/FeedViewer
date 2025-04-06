@@ -93,17 +93,18 @@ module App =
                                         if file.Any() then
                                             file.First() |> exportImport.Import
 
-                                            Async.StartWithContinuations(
-                                                channelReader.ReadAllChannelsAsync(),
-                                                (fun _ ->
-                                                    //refresh navmenu
-                                                    store.IsMenuOpen.Publish(false)
-                                                    store.IsMenuOpen.Publish(true)
-                                                    //navigate to all channels
-                                                    navigation.NavigateTo("/channel/all")),
-                                                (fun ex -> printfn "%A" ex),
-                                                (fun _ -> ())
-                                            ))
+                                    // Async.StartWithContinuations(
+                                    //     channelReader.ReadAllChannelsAsync(),
+                                    //     (fun _ ->
+                                    //         //refresh navmenu
+                                    //         store.IsMenuOpen.Publish(false)
+                                    //         store.IsMenuOpen.Publish(true)
+                                    //         //navigate to all channels
+                                    //         navigation.NavigateTo("/channel/all")),
+                                    //     (fun ex -> printfn "%A" ex),
+                                    //     (fun _ -> ())
+                                    // )
+                                    )
 
                                     "Import"
 

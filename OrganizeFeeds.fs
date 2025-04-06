@@ -2,20 +2,30 @@ namespace FeedViewer.Application
 
 module OrganizeFeeds =
     open System
+    open System.Linq
     open Microsoft.FluentUI.AspNetCore.Components
     open Fun.Blazor
     open FeedViewer
+    open Navmenu
 
     let main =
         html.inject
             (fun
                 (store: IShareStore,
                  hook: IComponentHook,
-                 groups: IChannelGroups,
-                 channels: IChannels,
+                 dataAccess: IDataAccess,
+                 reader: IChannelReader,
                  dialogs: IDialogService) ->
                 hook.AddInitializedTask(fun () ->
-                    task { store.FeedGroups.Publish(FeedGroups.LoadedChannelGroupList(groups.GetAll())) })
+                    task {
+                        store.FeedGroups.Publish(
+                            FeedGroups.LoadedChannelGroupList(dataAccess.ChannelsGroups.GetAll())
+                        )
+
+                        store.FeedChannels.Publish(
+                            FeedChannels.LoadedChannelsList(dataAccess.Channels.GetByGroupId(None))
+                        )
+                    })
 
                 fragment {
                     h3 { "Organize Feeds" }
@@ -23,6 +33,12 @@ module OrganizeFeeds =
                     adapt {
                         let! feedGroups, setFeedGroups = store.FeedGroups.WithSetter()
                         let! selectedFeedGroup, setSelectedFeedGroup = store.SelectedFeedGroup.WithSetter()
+                        let! feedChannels, setFeedChannels = store.FeedChannels.WithSetter()
+                        //let! selectedFeedChannel, setSelectedFeedChannel = store.SelectedFeedChannel.WithSetter()
+
+                        let updateNavigation () =
+                            store.IsMenuOpen.Publish(false)
+                            store.IsMenuOpen.Publish(true)
 
                         let disabledFeedGroupButtons =
                             match selectedFeedGroup with
@@ -33,6 +49,12 @@ module OrganizeFeeds =
                             match feedGroups with
                             | FeedGroups.LoadedChannelGroupList foldersList -> ChannelGroup(0, "") :: foldersList
                             | _ -> []
+
+                        let feeds =
+                            match feedChannels with
+                            | FeedChannels.LoadedChannelsList feedsList -> feedsList.AsQueryable<Channel>()
+                            | _ -> [].AsQueryable<Channel>()
+
 
                         FluentStack'' {
                             FluentSelect'' {
@@ -45,11 +67,21 @@ module OrganizeFeeds =
                                 OptionText(fun (x: ChannelGroup) -> x.Name)
 
                                 SelectedOptionChanged(fun (x: ChannelGroup) ->
+                                    let id =
+                                        match x.Id with
+                                        | 0 -> None
+                                        | _ -> Some x.Id
+
+                                    store.FeedChannels.Publish(
+                                        FeedChannels.LoadedChannelsList(dataAccess.Channels.GetByGroupId(id))
+                                    )
+
                                     store.SelectedFeedGroup.Publish(SelectedFeedGroup.SelectedGroup x))
                             }
 
                             FluentButton'' {
                                 IconStart(Icons.Regular.Size20.FolderAdd())
+                                title' "Add new folder"
 
                                 OnClick(fun _ ->
                                     task {
@@ -70,11 +102,13 @@ module OrganizeFeeds =
 
                                         if (not result.Cancelled) && (not (isNull result.Data)) then
                                             let group = result.Data :?> ChannelGroup
-                                            groups.Create group |> ignore
+                                            dataAccess.ChannelsGroups.Create group |> ignore
 
                                             store.FeedGroups.Publish(
-                                                FeedGroups.LoadedChannelGroupList(groups.GetAll())
+                                                FeedGroups.LoadedChannelGroupList(dataAccess.ChannelsGroups.GetAll())
                                             )
+
+                                            updateNavigation ()
                                     })
 
                                 "Add Folder"
@@ -82,6 +116,7 @@ module OrganizeFeeds =
 
                             FluentButton'' {
                                 IconStart(Icons.Regular.Size20.Edit())
+                                title' "Edit current folder"
                                 Disabled(disabledFeedGroupButtons)
 
                                 OnClick(fun _ ->
@@ -109,11 +144,15 @@ module OrganizeFeeds =
 
                                             if (not result.Cancelled) && (not (isNull result.Data)) then
                                                 let folder = result.Data :?> ChannelGroup
-                                                groups.Update folder |> ignore
+                                                dataAccess.ChannelsGroups.Update folder |> ignore
 
                                                 store.FeedGroups.Publish(
-                                                    FeedGroups.LoadedChannelGroupList(groups.GetAll())
+                                                    FeedGroups.LoadedChannelGroupList(
+                                                        dataAccess.ChannelsGroups.GetAll()
+                                                    )
                                                 )
+
+                                                updateNavigation ()
                                     })
 
                                 "Edit Folder"
@@ -121,6 +160,7 @@ module OrganizeFeeds =
 
                             FluentButton'' {
                                 IconStart(Icons.Regular.Size20.Delete())
+                                title' "Remove current folder"
                                 Disabled(disabledFeedGroupButtons)
 
                                 OnClick(fun _ ->
@@ -143,14 +183,183 @@ module OrganizeFeeds =
                                             let! result = dialog.Result |> Async.AwaitTask
 
                                             if not result.Cancelled then
-                                                groups.Delete group.Id |> ignore
+                                                dataAccess.ChannelsGroups.Delete group.Id |> ignore
 
                                                 store.FeedGroups.Publish(
-                                                    FeedGroups.LoadedChannelGroupList(groups.GetAll())
+                                                    FeedGroups.LoadedChannelGroupList(
+                                                        dataAccess.ChannelsGroups.GetAll()
+                                                    )
                                                 )
+
+                                                updateNavigation ()
                                     })
 
                                 "Remove Folder"
+                            }
+
+                            FluentButton'' {
+                                IconStart(Icons.Regular.Size20.Rss())
+                                title' "Add feed to current folder"
+                                OnClick(fun _ ->
+                                    task {
+                                        let dialogParams = DialogParameters()
+                                        dialogParams.Title <- "Add feed to current folder"
+                                        dialogParams.Height <- "250px"
+                                        dialogParams.PreventDismissOnOverlayClick <- true
+                                        dialogParams.PreventScroll <- true
+
+                                        let groupId =
+                                            match selectedFeedGroup with
+                                            | SelectedFeedGroup.SelectedGroup sg -> Some sg.Id
+                                            | SelectedFeedGroup.NotSelectedGroup -> None
+
+                                        let! dialog =
+                                            dialogs.ShowDialogAsync<AdddFeedDialog, string>(
+                                                String.Empty,
+                                                dialogParams
+                                            )
+                                            |> Async.AwaitTask
+
+                                        let! result = dialog.Result |> Async.AwaitTask
+
+                                        if (not result.Cancelled) && (not (isNull result.Data)) then
+                                            let url = result.Data :?> string
+
+                                            let channelId =
+                                                dataAccess.Channels.Create(
+                                                    Channel(0, groupId, String.Empty, None, None, url, None, None)
+                                                )
+
+                                            let p = iconsDirectoryPath
+                                            let! channel =
+                                                reader.ReadChannelAsync(channelId, p)
+                                                |> Async.StartAsTask
+                                                |> Async.AwaitTask
+
+                                            store.FeedChannels.Publish(
+                                                FeedChannels.LoadedChannelsList(
+                                                    dataAccess.Channels.GetByGroupId(groupId)
+                                                )
+                                            )
+
+                                            updateNavigation ()
+
+                                    })
+
+                                "Add feed"
+                            }
+                        }
+
+                        FluentDataGrid'' {
+                            style' "margin-right: 10px;"
+                            Items feeds
+                            GenerateHeader GenerateHeaderOption.None
+
+                            TemplateColumn'' {
+                                width "50px"
+
+                                ChildContent(fun (c: Channel) ->
+                                    img {
+                                        src (getIconPath c)
+                                        style' "width: 100%; height: 100%;cursor: pointer;"
+                                        title' "Open site in browser"
+
+                                        onclick (
+                                            "window.openLinkProvider.invokeMethodAsync('OpenLink', '"
+                                            + (if c.Link.IsSome then c.Link.Value else c.Url)
+                                            + "');"
+                                        )
+                                    })
+                            }
+
+                            TemplateColumn'' {
+                                ChildContent(fun (c: Channel) ->
+                                    a {
+                                        href c.Url
+                                        onclick "OpenLink()"
+                                        c.Title
+                                    })
+                            }
+
+                            TemplateColumn'' {
+                                width "110px"
+
+                                ChildContent(fun (c: Channel) ->
+                                    FluentButton'' {
+                                        IconStart(Icons.Regular.Size20.Edit())
+
+                                        OnClick(fun _ ->
+                                            task {
+                                                let dialogParams = DialogParameters()
+                                                dialogParams.Title <- "Edit Feed Channel"
+                                                dialogParams.Height <- "350px"
+                                                dialogParams.PreventDismissOnOverlayClick <- true
+                                                dialogParams.PreventScroll <- true
+
+                                                let data = ChannelEdit(c, folders)
+
+                                                let! dialog =
+                                                    dialogs.ShowDialogAsync<EditFeedDialog, ChannelEdit>(
+                                                        data,
+                                                        dialogParams
+                                                    )
+                                                    |> Async.AwaitTask
+
+                                                let! result = dialog.Result |> Async.AwaitTask
+
+                                                if (not result.Cancelled) && (not (isNull result.Data)) then
+                                                    let resultData = result.Data :?> ChannelEdit
+                                                    dataAccess.Channels.Update(resultData.Channel)
+
+                                                    store.FeedChannels.Publish(
+                                                        FeedChannels.LoadedChannelsList(
+                                                            dataAccess.Channels.GetByGroupId(
+                                                                resultData.Channel.GroupId
+                                                            )
+                                                        )
+                                                    )
+
+                                                    updateNavigation ()
+                                            })
+
+                                        "Edit"
+                                    })
+                            }
+
+                            TemplateColumn'' {
+                                width "110px"
+
+                                ChildContent(fun (c: Channel) ->
+                                    FluentButton'' {
+                                        IconStart(Icons.Regular.Size20.Delete())
+
+                                        OnClick(fun _ ->
+                                            task {
+                                                let! dialog =
+                                                    dialogs.ShowConfirmationAsync(
+                                                        $"Feed \"{c.Title}\" will be removed",
+                                                        "Are you sure?",
+                                                        "Cancel",
+                                                        "Remove current group"
+                                                    )
+                                                    |> Async.AwaitTask
+
+                                                let! result = dialog.Result |> Async.AwaitTask
+
+                                                if not result.Cancelled then
+                                                    dataAccess.Channels.Delete c.Id |> ignore
+
+                                                    store.FeedChannels.Publish(
+                                                        FeedChannels.LoadedChannelsList(
+                                                            dataAccess.Channels.GetByGroupId(c.GroupId)
+                                                        )
+                                                    )
+
+                                                    updateNavigation ()
+                                            })
+
+                                        "Delete"
+                                    })
                             }
                         }
                     }

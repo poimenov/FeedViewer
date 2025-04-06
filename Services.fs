@@ -416,9 +416,9 @@ type ChannelReader
 
                         let siteLink =
                             if channel.Link.IsSome then
-                                Uri(channel.Link.Value).GetLeftPart UriPartial.Authority
-                            else
                                 channel.Link.Value
+                            else
+                                Uri(channel.Url).GetLeftPart UriPartial.Authority
 
                         let siteUri =
                             if String.IsNullOrEmpty siteLink then
@@ -431,7 +431,9 @@ type ChannelReader
                         lock locker (fun () ->
                             if not (String.IsNullOrEmpty feed.Title) then
                                 channel.Title <-
-                                    if Uri(channel.Url).Host = channel.Title then
+                                    if
+                                        Uri(channel.Url).Host = channel.Title || String.IsNullOrEmpty(channel.Title)
+                                    then
                                         feed.Title
                                     else
                                         channel.Title

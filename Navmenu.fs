@@ -10,17 +10,23 @@ module Navmenu =
     open Fun.Blazor
     open FeedViewer
 
-    let getChannelIcon (channel: Channel) =
+    let getIconPath (channel: Channel) =
         let host = Uri(channel.Url).Host
         let files = Directory.GetFiles(iconsDirectoryPath, $"{host}.*")
 
-        let filePath =
-            if files.Length > 0 then
-                $"icons/{Path.GetFileName(files.[0])}"
-            else
-                "icons/rss-button-orange.32.png"
+        if files.Length > 0 then
+            $"icons/{Path.GetFileName(files.[0])}"
+        else
+            "icons/rss-button-orange.32.png"
 
-        Icon(String.Empty, IconVariant.Regular, IconSize.Size20, $"<img src=\"{filePath}\"  style=\"width: 100%%;\" />")
+
+    let getChannelIcon (channel: Channel) =
+        Icon(
+            String.Empty,
+            IconVariant.Regular,
+            IconSize.Size20,
+            $"<img src=\"{getIconPath (channel)}\"  style=\"width: 100%%;\" />"
+        )
 
     let getNavLinks (channels: list<Channel>) =
         channels

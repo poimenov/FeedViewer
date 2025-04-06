@@ -656,3 +656,17 @@ type Categories(connectionService: IConnectionService) =
                 |> Db.setParams [ "Name", SqlType.String categoryName ]
 
             cmd |> Db.query (fun reader -> getCategory reader) |> Seq.toList
+
+type IDataAccess =
+    abstract member Channels: IChannels
+    abstract member ChannelsGroups: IChannelGroups
+    abstract member ChannelItems: IChannelItems
+    abstract member Categories: ICategories
+
+type DataAccess
+    (channels: IChannels, channelsGroups: IChannelGroups, channelItems: IChannelItems, categories: ICategories) =
+    interface IDataAccess with
+        member this.Channels = channels
+        member this.ChannelsGroups = channelsGroups
+        member this.ChannelItems = channelItems
+        member this.Categories = categories

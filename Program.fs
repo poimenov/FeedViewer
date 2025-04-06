@@ -41,6 +41,7 @@ let main args =
     builder.Services.AddScoped<IChannels, Channels>() |> ignore
     builder.Services.AddScoped<IChannelItems, ChannelItems>() |> ignore
     builder.Services.AddScoped<ICategories, Categories>() |> ignore
+    builder.Services.AddScoped<IDataAccess, DataAccess>() |> ignore
     builder.Services.AddTransient<IOpenDialogService, OpenDialogService>() |> ignore
     builder.Services.AddTransient<IHttpHandler, HttpHandler>() |> ignore
     builder.Services.AddTransient<IIconDownloader, IconDownloader>() |> ignore

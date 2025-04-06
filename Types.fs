@@ -7,6 +7,7 @@ module Types =
     open Microsoft.JSInterop
     open Fun.Blazor
     open FeedViewer
+    open System
 
     type public OpenLinkProvider(los: ILinkOpeningService) =
         [<JSInvokable>]
@@ -91,7 +92,138 @@ module Types =
                         label' "Group Name"
                         value this.Content.Name
                         ValueChanged(fun (x: string) -> this.Content.Name <- x)
-                    //OnChange(fun (x: string) -> this.Content.Name <- x)
+                    }
+                }
+
+                FluentDialogFooter'' {
+                    FluentButton'' {
+                        Appearance Appearance.Accent
+                        OnClick(fun _ -> task { this.Dialog.CloseAsync(this.Content) |> Async.AwaitTask |> ignore })
+                        "Save"
+                    }
+
+                    FluentButton'' {
+                        Appearance Appearance.Neutral
+                        OnClick(fun _ -> task { this.Dialog.CancelAsync() |> Async.AwaitTask |> ignore })
+                        "Cancel"
+                    }
+                }
+            }
+
+    type ChannelEdit(channnel: Channel, groups: list<ChannelGroup>) =
+        member val Channel = channnel with get, set
+        member val Groups = groups with get, set
+
+    type EditFeedDialog() =
+        inherit FunComponent()
+
+        [<Parameter>]
+        member val Content = Unchecked.defaultof<ChannelEdit> with get, set
+
+        interface IDialogContentComponent<ChannelEdit> with
+            member this.Content = this.Content
+
+            member this.Content
+                with set (value) = this.Content <- value
+
+        [<CascadingParameter>]
+        member val Dialog = Unchecked.defaultof<FluentDialog> with get, set
+
+        override this.Render() =
+            adapt {
+                let groupId =
+                    match this.Content.Channel.GroupId with
+                    | Some id -> id
+                    | None -> 0
+
+                FluentDialogHeader'' {
+                    title' this.Dialog.Instance.Parameters.Title
+                    ShowDismiss true
+                }
+
+                FluentDialogBody'' {
+                    FluentStack'' {
+                        Orientation Orientation.Vertical
+
+                        FluentTextField'' {
+                            label' "Title"
+                            value this.Content.Channel.Title
+                            ValueChanged(fun (x: string) -> this.Content.Channel.Title <- x)
+                        }
+
+                        FluentTextField'' {
+                            label' "Url"
+                            style' "width: 450px;"
+                            value this.Content.Channel.Url
+                            ReadOnly true
+                        }
+
+                        FluentSelect'' {
+                            label' "Folder"
+                            type' typeof<ChannelGroup>
+                            Items this.Content.Groups
+                            OptionValue(fun (x: ChannelGroup) -> Convert.ToString x.Id)
+                            OptionText(fun (x: ChannelGroup) -> x.Name)
+                            SelectedOption(this.Content.Groups |> List.find (fun x -> x.Id = groupId))
+
+                            SelectedOptionChanged(fun (x: ChannelGroup) ->
+                                let id =
+                                    match x.Id with
+                                    | 0 -> None
+                                    | _ -> Some x.Id
+
+                                this.Content.Channel.GroupId <- id)
+                        }
+                    }
+                }
+
+                FluentDialogFooter'' {
+                    FluentButton'' {
+                        Appearance Appearance.Accent
+                        OnClick(fun _ -> task { this.Dialog.CloseAsync(this.Content) |> Async.AwaitTask |> ignore })
+                        "Save"
+                    }
+
+                    FluentButton'' {
+                        Appearance Appearance.Neutral
+                        OnClick(fun _ -> task { this.Dialog.CancelAsync() |> Async.AwaitTask |> ignore })
+                        "Cancel"
+                    }
+                }
+            }
+
+    type AdddFeedDialog() =
+        inherit FunComponent()
+
+        [<Parameter>]
+        member val Content = Unchecked.defaultof<string> with get, set
+
+        interface IDialogContentComponent<string> with
+            member this.Content = this.Content
+
+            member this.Content
+                with set (value) = this.Content <- value
+
+        [<CascadingParameter>]
+        member val Dialog = Unchecked.defaultof<FluentDialog> with get, set
+
+        override this.Render() =
+            adapt {
+                FluentDialogHeader'' {
+                    title' this.Dialog.Instance.Parameters.Title
+                    ShowDismiss true
+                }
+
+                FluentDialogBody'' {
+                    FluentStack'' {
+                        Orientation Orientation.Vertical
+
+                        FluentTextField'' {
+                            label' "URL"
+                            style' "width: 450px;"
+                            value this.Content
+                            ValueChanged(fun (x: string) -> this.Content <- x)
+                        }
                     }
                 }
 
