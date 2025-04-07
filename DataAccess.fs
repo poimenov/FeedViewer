@@ -68,6 +68,7 @@ type IChannelGroups =
     abstract member Create: ChannelGroup -> int
     abstract member Update: ChannelGroup -> unit
     abstract member Delete: int -> unit
+    abstract member Exists: string -> bool
     abstract member GetById: int -> ChannelGroup option
     abstract member GetByName: string -> ChannelGroup option
     abstract member GetAll: unit -> ChannelGroup list
@@ -98,6 +99,16 @@ type ChannelGroups(connectionService: IConnectionService) =
                 |> Db.setParams [ "Id", SqlType.Int id ]
 
             cmd |> Db.exec
+
+        member this.Exists(groupName) =
+            use conn = connectionService.GetConnection()
+
+            use cmd =
+                conn
+                |> Db.newCommand "SELECT EXISTS (SELECT 1 FROM ChannelsGroups WHERE Name = @Name);"
+                |> Db.setParams [ "Name", SqlType.String groupName ]
+
+            cmd |> Db.scalar Convert.ToBoolean
 
         member this.GetAll() =
             use conn = connectionService.GetConnection()

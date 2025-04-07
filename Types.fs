@@ -91,13 +91,18 @@ module Types =
                     FluentTextField'' {
                         label' "Group Name"
                         value this.Content.Name
-                        ValueChanged(fun (x: string) -> this.Content.Name <- x)
+                        Immediate true
+
+                        ValueChanged(fun (x: string) ->
+                            this.Content.Name <- x
+                            this.StateHasChanged())
                     }
                 }
 
                 FluentDialogFooter'' {
                     FluentButton'' {
                         Appearance Appearance.Accent
+                        disabled (String.IsNullOrWhiteSpace this.Content.Name)
                         OnClick(fun _ -> task { this.Dialog.CloseAsync(this.Content) |> Async.AwaitTask |> ignore })
                         "Save"
                     }
@@ -148,7 +153,11 @@ module Types =
                         FluentTextField'' {
                             label' "Title"
                             value this.Content.Channel.Title
-                            ValueChanged(fun (x: string) -> this.Content.Channel.Title <- x)
+                            Immediate true
+
+                            ValueChanged(fun (x: string) ->
+                                this.Content.Channel.Title <- x
+                                this.StateHasChanged())
                         }
 
                         FluentTextField'' {
@@ -180,6 +189,7 @@ module Types =
                 FluentDialogFooter'' {
                     FluentButton'' {
                         Appearance Appearance.Accent
+                        disabled (String.IsNullOrWhiteSpace this.Content.Channel.Title)
                         OnClick(fun _ -> task { this.Dialog.CloseAsync(this.Content) |> Async.AwaitTask |> ignore })
                         "Save"
                     }
@@ -192,8 +202,18 @@ module Types =
                 }
             }
 
-    type AdddFeedDialog() =
+    type AddFeedDialog() =
         inherit FunComponent()
+
+        let isUrlValid (input: string) =
+            if String.IsNullOrWhiteSpace input then
+                false
+            else
+                match System.Uri.TryCreate(input, System.UriKind.Absolute) with
+                | true, uri -> (uri.Scheme = "http" || uri.Scheme = "https")
+                | false, _ -> false
+
+        member val IsValid = false with get, set
 
         [<Parameter>]
         member val Content = Unchecked.defaultof<string> with get, set
@@ -222,7 +242,13 @@ module Types =
                             label' "URL"
                             style' "width: 450px;"
                             value this.Content
-                            ValueChanged(fun (x: string) -> this.Content <- x)
+                            Immediate true
+                            TextFieldType TextFieldType.Url
+
+                            ValueChanged(fun (x: string) ->
+                                this.IsValid <- isUrlValid x
+                                this.Content <- x
+                                this.StateHasChanged())
                         }
                     }
                 }
@@ -230,6 +256,7 @@ module Types =
                 FluentDialogFooter'' {
                     FluentButton'' {
                         Appearance Appearance.Accent
+                        disabled (not this.IsValid)
                         OnClick(fun _ -> task { this.Dialog.CloseAsync(this.Content) |> Async.AwaitTask |> ignore })
                         "Save"
                     }
