@@ -40,6 +40,10 @@ module Types =
         | NotSelectedChannel
         | SelectedChannel of Channel
 
+    type ChannelItems =
+        | NotLoadedFeedItemsList
+        | LoadedFeedItemsList of ChannelItem list
+
     type IShareStore with
         member store.Count = store.CreateCVal(nameof store.Count, 0)
         member store.IsMenuOpen = store.CreateCVal(nameof store.IsMenuOpen, true)
@@ -64,6 +68,9 @@ module Types =
 
         member store.SelectedFeedChannel =
             store.CreateCVal(nameof store.SelectedFeedChannel, SelectedFeedChannel.NotSelectedChannel)
+
+        member store.FeedItems =
+            store.CreateCVal(nameof store.FeedItems, ChannelItems.NotLoadedFeedItemsList)
 
     type FeedGroupDialog() =
         inherit FunComponent()

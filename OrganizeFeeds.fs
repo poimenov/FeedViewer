@@ -34,7 +34,6 @@ module OrganizeFeeds =
                         let! feedGroups, setFeedGroups = store.FeedGroups.WithSetter()
                         let! selectedFeedGroup, setSelectedFeedGroup = store.SelectedFeedGroup.WithSetter()
                         let! feedChannels, setFeedChannels = store.FeedChannels.WithSetter()
-                        //let! selectedFeedChannel, setSelectedFeedChannel = store.SelectedFeedChannel.WithSetter()
 
                         let updateNavigation () =
                             store.IsMenuOpen.Publish(false)
@@ -57,6 +56,8 @@ module OrganizeFeeds =
 
 
                         FluentStack'' {
+                            style' "margin-right: 10px;"
+
                             FluentSelect'' {
                                 Width "200px"
                                 Height "300px"

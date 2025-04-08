@@ -349,6 +349,7 @@ type IconDownloader(http: IHttpHandler, logger: ILogger<IconDownloader>) =
 
 type IChannelReader =
     abstract member ReadChannelAsync: int * string -> Async<Channel>
+    abstract member ReadGroupAsync: int * string -> Async<Channel array>
     abstract member ReadAllChannelsAsync: unit -> Async<Channel array>
 
 type ChannelReader
@@ -494,6 +495,20 @@ type ChannelReader
 
                 return!
                     channels.GetAll()
+                    |> Seq.map (fun c -> c.Id)
+                    |> Seq.map readChannel
+                    |> Async.Parallel
+                    |> Async.StartAsTask
+                    |> Async.AwaitTask
+            }
+
+        member this.ReadGroupAsync(groupId: int, iconsDirectoryPath: string) : Async<Channel array> =
+            async {
+                let readChannel (id: int) =
+                    (this :> IChannelReader).ReadChannelAsync(id, iconsDirectoryPath)
+
+                return!
+                    channels.GetByGroupId(Some(groupId))
                     |> Seq.map (fun c -> c.Id)
                     |> Seq.map readChannel
                     |> Async.Parallel

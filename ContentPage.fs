@@ -11,78 +11,127 @@ module ContentPage =
         html.inject
             (fun
                 (store: IShareStore,
-                 groups: IChannelGroups,
-                 channels: IChannels,
-                 channelItems: IChannelItems,
+                 dataAccess: IDataAccess,
+                 reader: IChannelReader,
                  linkOpeningService: ILinkOpeningService) ->
 
-                let title, items, count =
+                let load, title, update =
                     match id with
-                    | All -> "All", channelItems.GetByRead(false), channels.GetAllUnreadCount()
-                    | ReadLater -> "Read Later", channelItems.GetByReadLater(true), channels.GetReadLaterCount()
-                    | Starred -> "Starred", channelItems.GetByFavorite(true), channels.GetStarredCount()
+                    | All ->
+                        store.FeedItems.Publish(
+                            ChannelItems.LoadedFeedItemsList(dataAccess.ChannelItems.GetByRead(false))
+                        ),
+                        "All",
+                        reader.ReadAllChannelsAsync() |> Async.StartAsTask |> Async.AwaitTask |> ignore
+                    | ReadLater ->
+                        store.FeedItems.Publish(
+                            ChannelItems.LoadedFeedItemsList(dataAccess.ChannelItems.GetByReadLater(true))
+                        ),
+                        "Read Later",
+                        ignore ()
+                    | Starred ->
+                        store.FeedItems.Publish(
+                            ChannelItems.LoadedFeedItemsList(dataAccess.ChannelItems.GetByFavorite(true))
+                        ),
+                        "Starred",
+                        ignore ()
                     | ByGroupId groupId ->
-                        groups.GetById(groupId).Value.Name,
-                        channelItems.GetByGroupId groupId,
-                        groups.GetGroupUnreadCount groupId
+                        store.FeedItems.Publish(
+                            ChannelItems.LoadedFeedItemsList(dataAccess.ChannelItems.GetByGroupId(groupId))
+                        ),
+                        dataAccess.ChannelsGroups.GetById(groupId).Value.Name,
+                        reader.ReadGroupAsync(groupId, iconsDirectoryPath)
+                        |> Async.StartAsTask
+                        |> Async.AwaitTask
+                        |> ignore
                     | ByChannelId channelId ->
-                        channels.Get(channelId).Value.Title,
-                        channelItems.GetByChannelId channelId,
-                        channels.GetChannelUnreadCount channelId
+                        store.FeedItems.Publish(
+                            ChannelItems.LoadedFeedItemsList(dataAccess.ChannelItems.GetByChannelId(channelId))
+                        ),
+                        dataAccess.Channels.Get(channelId).Value.Title,
+                        reader.ReadChannelAsync(channelId, iconsDirectoryPath)
+                        |> Async.StartAsTask
+                        |> Async.AwaitTask
+                        |> ignore
+
+                let count =
+                    match store.FeedItems.Value with
+                    | ChannelItems.LoadedFeedItemsList items -> items.Count()
+                    | _ -> 0
+
 
                 fragment {
-                    div {
+                    FluentStack'' {
                         style' "height: 80px;"
+                        Orientation Orientation.Horizontal
 
-                        FluentStack'' {
-                            Orientation Orientation.Horizontal
+                        adapt {
+                            let! leftPaneWidth, setLeftPaneWidth = store.LeftPaneWidth.WithSetter()
 
-                            adapt {
-                                let! leftPaneWidth, setLeftPaneWidth = store.LeftPaneWidth.WithSetter()
+                            FluentStack'' {
+                                Orientation Orientation.Vertical
+                                width $"{leftPaneWidth}px;"
 
-                                div {
-                                    style' $"width: {leftPaneWidth}px;"
+                                FluentLabel'' {
+                                    Typo Typography.H4
+                                    Color Color.Accent
+                                    $"{title}({count})"
+                                }
 
-                                    FluentLabel'' {
-                                        Typo Typography.H4
-                                        Color Color.Accent
-                                        $"{title}({count})"
+                                FluentStack'' {
+                                    Orientation Orientation.Horizontal
+
+                                    FluentButton'' {
+                                        IconStart(Icons.Regular.Size20.CheckmarkCircle())
+                                        "Mark All Read"
+                                    }
+
+                                    FluentButton'' {
+                                        IconStart(Icons.Regular.Size20.ArrowSyncCircle())
+
+                                        OnClick(fun _ ->
+                                            task {
+                                                update
+                                                load
+                                            })
+
+                                        "Synchronize"
                                     }
                                 }
                             }
+                        }
 
-                            adapt {
-                                let! selectedItem, setSelectedItem = store.SelectedChannelItem.WithSetter()
-                                let! leftPaneWidth, setLeftPaneWidth = store.LeftPaneWidth.WithSetter()
+                        adapt {
+                            let! selectedItem, setSelectedItem = store.SelectedChannelItem.WithSetter()
+                            let! leftPaneWidth, setLeftPaneWidth = store.LeftPaneWidth.WithSetter()
 
-                                div {
-                                    style' ("width: calc(100%-" + leftPaneWidth.ToString() + "px) ;overflow: hidden;")
+                            div {
+                                style' ("width: calc(100%-" + leftPaneWidth.ToString() + "px) ;overflow: hidden;")
 
-                                    match selectedItem with
-                                    | NotSelected -> ()
-                                    | SelectedChannelItem.Selected selItem ->
-                                        let link =
-                                            match selItem.Link with
-                                            | Some link -> link
-                                            | None -> "#"
+                                match selectedItem with
+                                | NotSelected -> ()
+                                | SelectedChannelItem.Selected selItem ->
+                                    let link =
+                                        match selItem.Link with
+                                        | Some link -> link
+                                        | None -> "#"
 
-                                        div {
-                                            a {
-                                                style' "font-size: 16px;font-weight: bold;"
-                                                href link
-                                                onclick "OpenLink()"
-                                                selItem.Title
-                                            }
+                                    div {
+                                        a {
+                                            style' "font-size: 16px;font-weight: bold;"
+                                            href link
+                                            onclick "OpenLink()"
+                                            selItem.Title
                                         }
+                                    }
 
-                                        div {
-                                            style' "font-style: italic;font-size: 12px;"
+                                    div {
+                                        style' "font-style: italic;font-size: 12px;"
 
-                                            match selItem.PublishingDate with
-                                            | Some date -> date.ToLongDateString()
-                                            | None -> ""
-                                        }
-                                }
+                                        match selItem.PublishingDate with
+                                        | Some date -> date.ToLongDateString()
+                                        | None -> ""
+                                    }
                             }
                         }
                     }
@@ -99,6 +148,13 @@ module ContentPage =
                         Panel1(
                             div {
                                 adapt {
+                                    let! feedItems, setFeedItems = store.FeedItems.WithSetter()
+
+                                    let items =
+                                        match feedItems with
+                                        | NotLoadedFeedItemsList -> []
+                                        | LoadedFeedItemsList lst -> lst
+
                                     let! selectedItem, setSelectedItem = store.SelectedChannelItem.WithSetter()
 
                                     let getStyle (curr: ChannelItem) =
@@ -159,10 +215,10 @@ module ContentPage =
                                 class' "channel-item-content"
 
                                 adapt {
-                                    let! selectedItem, setSelectedItem = store.SelectedChannelItem.WithSetter()
-
                                     let addOpenLink (txt: string) =
                                         txt.Replace("<a ", "<a onclick='OpenLink()' ")
+
+                                    let! selectedItem, setSelectedItem = store.SelectedChannelItem.WithSetter()
 
                                     match selectedItem with
                                     | NotSelected -> ()
