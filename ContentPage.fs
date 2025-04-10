@@ -7,7 +7,52 @@ module ContentPage =
     open Fun.Blazor
     open FeedViewer
 
-    let main (id: channelId) =
+    let load (id: ChannelId, store: IShareStore, dataAccess: IDataAccess) =
+        match id with
+        | All -> store.FeedItems.Publish(ChannelItems.LoadedFeedItemsList(dataAccess.ChannelItems.GetByRead(false)))
+        | ReadLater ->
+            store.FeedItems.Publish(ChannelItems.LoadedFeedItemsList(dataAccess.ChannelItems.GetByReadLater(true)))
+        | Starred ->
+            store.FeedItems.Publish(ChannelItems.LoadedFeedItemsList(dataAccess.ChannelItems.GetByFavorite(true)))
+        | ByGroupId groupId ->
+            store.FeedChannels.Publish(FeedChannels.LoadedChannelsList(dataAccess.Channels.GetByGroupId(Some groupId)))
+        | ByChannelId channelId ->
+            store.FeedItems.Publish(ChannelItems.LoadedFeedItemsList(dataAccess.ChannelItems.GetByChannelId(channelId)))
+
+    let update (id: ChannelId, reader: IChannelReader) =
+        match id with
+        | All -> reader.ReadAllChannelsAsync() |> Async.StartAsTask |> Async.AwaitTask
+        | ByGroupId groupId ->
+            reader.ReadGroupAsync(groupId, iconsDirectoryPath)
+            |> Async.StartAsTask
+            |> Async.AwaitTask
+        | ByChannelId channelId ->
+            let readChannel (id: int) =
+                reader.ReadChannelAsync(id, iconsDirectoryPath)
+
+            [ channelId ]
+            |> List.map readChannel
+            |> Async.Parallel
+            |> Async.StartAsTask
+            |> Async.AwaitTask
+        | ReadLater -> async { return [||] }
+        | Starred -> async { return [||] }
+
+    let openChannelLink (id: ChannelId, dataAccess: IDataAccess, linkOpeningService: ILinkOpeningService) =
+        match id with
+        | ByChannelId channelId ->
+            match dataAccess.Channels.Get(channelId) with
+            | Some channel ->
+                let url =
+                    match channel.Link with
+                    | Some link -> link
+                    | None -> channel.Url
+
+                linkOpeningService.OpenUrl(url) |> ignore
+            | _ -> ignore ()
+        | _ -> ignore ()
+
+    let main (id: ChannelId) =
         html.inject
             (fun
                 (store: IShareStore,
@@ -15,44 +60,16 @@ module ContentPage =
                  reader: IChannelReader,
                  linkOpeningService: ILinkOpeningService) ->
 
-                let load, title, update =
+                store.CurrentChannelId.Publish(id)
+                load (id, store, dataAccess)
+
+                let title =
                     match id with
-                    | All ->
-                        store.FeedItems.Publish(
-                            ChannelItems.LoadedFeedItemsList(dataAccess.ChannelItems.GetByRead(false))
-                        ),
-                        "All",
-                        reader.ReadAllChannelsAsync() |> Async.StartAsTask |> Async.AwaitTask |> ignore
-                    | ReadLater ->
-                        store.FeedItems.Publish(
-                            ChannelItems.LoadedFeedItemsList(dataAccess.ChannelItems.GetByReadLater(true))
-                        ),
-                        "Read Later",
-                        ignore ()
-                    | Starred ->
-                        store.FeedItems.Publish(
-                            ChannelItems.LoadedFeedItemsList(dataAccess.ChannelItems.GetByFavorite(true))
-                        ),
-                        "Starred",
-                        ignore ()
-                    | ByGroupId groupId ->
-                        store.FeedItems.Publish(
-                            ChannelItems.LoadedFeedItemsList(dataAccess.ChannelItems.GetByGroupId(groupId))
-                        ),
-                        dataAccess.ChannelsGroups.GetById(groupId).Value.Name,
-                        reader.ReadGroupAsync(groupId, iconsDirectoryPath)
-                        |> Async.StartAsTask
-                        |> Async.AwaitTask
-                        |> ignore
-                    | ByChannelId channelId ->
-                        store.FeedItems.Publish(
-                            ChannelItems.LoadedFeedItemsList(dataAccess.ChannelItems.GetByChannelId(channelId))
-                        ),
-                        dataAccess.Channels.Get(channelId).Value.Title,
-                        reader.ReadChannelAsync(channelId, iconsDirectoryPath)
-                        |> Async.StartAsTask
-                        |> Async.AwaitTask
-                        |> ignore
+                    | All -> "All"
+                    | ReadLater -> "Read Later"
+                    | Starred -> "Starred"
+                    | ByGroupId groupId -> dataAccess.ChannelsGroups.GetById(groupId).Value.Name
+                    | ByChannelId channelId -> dataAccess.Channels.Get(channelId).Value.Title
 
                 let count =
                     match store.FeedItems.Value with
@@ -67,6 +84,12 @@ module ContentPage =
 
                         adapt {
                             let! leftPaneWidth, setLeftPaneWidth = store.LeftPaneWidth.WithSetter()
+                            let h4width = leftPaneWidth - 30
+
+                            let cursorStyle =
+                                match store.CurrentChannelId.Value with
+                                | ByChannelId _ -> "cursor: pointer"
+                                | _ -> ""
 
                             FluentStack'' {
                                 Orientation Orientation.Vertical
@@ -75,6 +98,13 @@ module ContentPage =
                                 FluentLabel'' {
                                     Typo Typography.H4
                                     Color Color.Accent
+
+                                    style'
+                                        $"width:{h4width}px;{cursorStyle};white-space: nowrap;overflow: hidden;text-overflow: ellipsis;"
+
+                                    onclick (fun _ ->
+                                        openChannelLink (store.CurrentChannelId.Value, dataAccess, linkOpeningService))
+
                                     $"{title}({count})"
                                 }
 
@@ -91,8 +121,8 @@ module ContentPage =
 
                                         OnClick(fun _ ->
                                             task {
-                                                update
-                                                load
+                                                let! chnls = update (store.CurrentChannelId.Value, reader)
+                                                load (store.CurrentChannelId.Value, store, dataAccess)
                                             })
 
                                         "Synchronize"
@@ -106,7 +136,7 @@ module ContentPage =
                             let! leftPaneWidth, setLeftPaneWidth = store.LeftPaneWidth.WithSetter()
 
                             div {
-                                style' ("width: calc(100%-" + leftPaneWidth.ToString() + "px) ;overflow: hidden;")
+                                style' ("width: calc(100%-" + leftPaneWidth.ToString() + "px);overflow: hidden;")
 
                                 match selectedItem with
                                 | NotSelected -> ()
@@ -116,13 +146,13 @@ module ContentPage =
                                         | Some link -> link
                                         | None -> "#"
 
-                                    div {
-                                        a {
-                                            style' "font-size: 16px;font-weight: bold;"
-                                            href link
-                                            onclick "OpenLink()"
-                                            selItem.Title
-                                        }
+                                    a {
+                                        class' "channel-item-title"
+                                        style' "font-size: 16px;"
+                                        title' selItem.Title
+                                        href link
+                                        onclick "OpenLink()"
+                                        selItem.Title
                                     }
 
                                     div {

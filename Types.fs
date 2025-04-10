@@ -13,7 +13,7 @@ module Types =
         [<JSInvokable>]
         member public this.OpenLink(link: string) = los.OpenUrl link
 
-    type channelId =
+    type ChannelId =
         | All
         | ReadLater
         | Starred
@@ -71,6 +71,8 @@ module Types =
 
         member store.FeedItems =
             store.CreateCVal(nameof store.FeedItems, ChannelItems.NotLoadedFeedItemsList)
+
+        member store.CurrentChannelId = store.CreateCVal(nameof store.CurrentChannelId, ChannelId.All)
 
     type FeedGroupDialog() =
         inherit FunComponent()

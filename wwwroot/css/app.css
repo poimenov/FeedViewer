@@ -135,7 +135,9 @@ footer a:hover {
     max-height: 40px;
     width: 100%;
     overflow: hidden;
-    text-wrap: ellipsis;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    display: inline-block;
 }
 
 .channel-item-description {
@@ -148,14 +150,6 @@ footer a:hover {
     float: left;
     margin: 0px 4px 4px 0px;
     border-radius: 4px;
-}
-
-.channel-items-title {
-    font-size: 30px;
-    margin-bottom: 10px;
-    overflow:hidden;
-    width: 99%;
-    /* text-overflow: ellipsis; */
 }
 
 .channel-item-content {
