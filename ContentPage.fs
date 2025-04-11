@@ -6,6 +6,7 @@ module ContentPage =
     open Microsoft.FluentUI.AspNetCore.Components
     open Fun.Blazor
     open FeedViewer
+    open System
 
     let load (id: ChannelId, store: IShareStore, dataAccess: IDataAccess) =
         match id with
@@ -15,7 +16,7 @@ module ContentPage =
         | Starred ->
             store.FeedItems.Publish(ChannelItems.LoadedFeedItemsList(dataAccess.ChannelItems.GetByFavorite(true)))
         | ByGroupId groupId ->
-            store.FeedChannels.Publish(FeedChannels.LoadedChannelsList(dataAccess.Channels.GetByGroupId(Some groupId)))
+            store.FeedItems.Publish(ChannelItems.LoadedFeedItemsList(dataAccess.ChannelItems.GetByGroupId(groupId)))
         | ByChannelId channelId ->
             store.FeedItems.Publish(ChannelItems.LoadedFeedItemsList(dataAccess.ChannelItems.GetByChannelId(channelId)))
 
@@ -62,6 +63,15 @@ module ContentPage =
 
                 store.CurrentChannelId.Publish(id)
                 load (id, store, dataAccess)
+
+                match store.FeedItems.Value with
+                | ChannelItems.LoadedFeedItemsList items ->
+                    if items.Count() > 0 then
+                        let first = items |> Seq.head |> SelectedChannelItem.Selected
+                        store.SelectedChannelItem.Publish(first)
+                    else
+                        store.SelectedChannelItem.Publish(SelectedChannelItem.NotSelected)
+                | NotLoadedFeedItemsList -> store.SelectedChannelItem.Publish(SelectedChannelItem.NotSelected)
 
                 let title =
                     match id with
@@ -136,7 +146,7 @@ module ContentPage =
                             let! leftPaneWidth, setLeftPaneWidth = store.LeftPaneWidth.WithSetter()
 
                             div {
-                                style' ("width: calc(100%-" + leftPaneWidth.ToString() + "px);overflow: hidden;")
+                                style' ("width: calc(100% - " + leftPaneWidth.ToString() + "px);overflow: hidden;")
 
                                 match selectedItem with
                                 | NotSelected -> ()
@@ -245,20 +255,83 @@ module ContentPage =
                                 class' "channel-item-content"
 
                                 adapt {
-                                    let addOpenLink (txt: string) =
-                                        txt.Replace("<a ", "<a onclick='OpenLink()' ")
-
                                     let! selectedItem, setSelectedItem = store.SelectedChannelItem.WithSetter()
 
-                                    match selectedItem with
-                                    | NotSelected -> ()
-                                    | SelectedChannelItem.Selected selItem ->
-                                        match selItem.Content with
-                                        | None ->
-                                            match selItem.Description with
-                                            | None -> ()
-                                            | Some description -> div { childContentRaw (addOpenLink (description)) }
-                                        | Some contentHtml -> div { childContentRaw (addOpenLink (contentHtml)) }
+                                    let tryGetNextElement (element: ChannelItem, list: ChannelItem list) =
+                                        list
+                                        |> List.tryFindIndex ((=) element)
+                                        |> Option.bind (fun i ->
+                                            if i < List.length list - 1 then Some list.[i + 1] else None)
+
+                                    let tryGetPreviousElement (element: ChannelItem, list: ChannelItem list) =
+                                        list
+                                        |> List.tryFindIndex ((=) element)
+                                        |> Option.bind (fun i -> if 0 < i then Some list.[i - 1] else None)
+
+                                    let contentHtml =
+                                        let txt =
+                                            match selectedItem with
+                                            | NotSelected -> ""
+                                            | SelectedChannelItem.Selected selItem ->
+                                                match selItem.Content with
+                                                | None ->
+                                                    match selItem.Description with
+                                                    | None -> ""
+                                                    | Some description -> description
+                                                | Some htmlText -> htmlText
+
+                                        txt.Replace("<a ", "<a onclick='OpenLink()' ")
+
+
+
+                                    FluentCard'' {
+                                        style' "height: 100%;overflow: auto;"
+
+                                        FluentFlipper'' {
+                                            style' "position: absolute; top: 50%;left:10px;"
+
+                                            Direction FlipperDirection.Previous
+
+                                            onclick (fun _ ->
+                                                match store.FeedItems.Value with
+                                                | NotLoadedFeedItemsList -> ()
+                                                | LoadedFeedItemsList items ->
+                                                    match selectedItem with
+                                                    | NotSelected -> ()
+                                                    | Selected item ->
+                                                        match tryGetPreviousElement (item, items) with
+                                                        | None -> ()
+                                                        | Some next ->
+                                                            setSelectedItem (SelectedChannelItem.Selected next))
+                                        }
+
+                                        FluentFlipper'' {
+                                            style' "position: absolute; top: 50%;right:10px;"
+
+                                            Direction FlipperDirection.Next
+
+                                            onclick (fun _ ->
+                                                match store.FeedItems.Value with
+                                                | NotLoadedFeedItemsList -> ()
+                                                | LoadedFeedItemsList items ->
+                                                    match selectedItem with
+                                                    | NotSelected -> ()
+                                                    | Selected item ->
+                                                        match tryGetNextElement (item, items) with
+                                                        | None -> ()
+                                                        | Some next ->
+                                                            setSelectedItem (SelectedChannelItem.Selected next))
+                                        }
+
+                                        div {
+                                            style'
+                                                "height: 100%;overflow: auto;padding: 0 10px 0 15px;margin-right: 15px;"
+
+                                            childContentRaw (contentHtml)
+                                        }
+                                    }
+
+
                                 }
                             }
                         )
