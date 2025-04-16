@@ -127,6 +127,11 @@ footer a:hover {
     overflow: hidden;
     margin-right: 10px;
     cursor: pointer;
+    border: 1px solid var(--neutral-stroke-rest);
+}
+
+.selected-channel-item {
+    border: 1px solid var(--accent-fill-rest);
 }
 
 .channel-item-title {

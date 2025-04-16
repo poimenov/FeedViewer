@@ -4,6 +4,7 @@ module ContentPage =
     open System.Linq
     open Microsoft.AspNetCore.Components.Web.Virtualization
     open Microsoft.FluentUI.AspNetCore.Components
+    open Microsoft.JSInterop
     open Fun.Blazor
     open FeedViewer
     open System
@@ -59,6 +60,7 @@ module ContentPage =
                 (store: IShareStore,
                  dataAccess: IDataAccess,
                  reader: IChannelReader,
+                 jsRuntime: IJSRuntime,
                  linkOpeningService: ILinkOpeningService) ->
 
                 store.CurrentChannelId.Publish(id)
@@ -197,45 +199,46 @@ module ContentPage =
 
                                     let! selectedItem, setSelectedItem = store.SelectedChannelItem.WithSetter()
 
-                                    let getStyle (curr: ChannelItem) =
-                                        let defaultStyle = "border: 1px solid var(--neutral-stroke-rest);"
-                                        let selectedStyle = "border: 1px solid var(--accent-fill-rest);"
+                                    let getSelectedClass (curr: ChannelItem) =
+                                        let defaultClassName = "channel-item"
+                                        let selectedClassName = "channel-item selected-channel-item"
 
                                         match selectedItem with
-                                        | NotSelected -> defaultStyle
-                                        | Selected item -> if curr.Id = item.Id then selectedStyle else defaultStyle
+                                        | NotSelected -> defaultClassName
+                                        | Selected item ->
+                                            if curr.Id = item.Id then
+                                                selectedClassName
+                                            else
+                                                defaultClassName
 
                                     Virtualize'' {
                                         Items(items.ToList<ChannelItem>())
 
                                         ItemContent(fun item ->
                                             div {
-                                                class' "channel-item"
-                                                style' (getStyle item)
+                                                class' (getSelectedClass item)
 
-                                                a {
-                                                    onclick (fun _ ->
-                                                        let selected = SelectedChannelItem.Selected(item)
-                                                        store.SelectedChannelItem.Publish(selected))
+                                                onclick (fun _ ->
+                                                    let selected = SelectedChannelItem.Selected(item)
+                                                    store.SelectedChannelItem.Publish(selected))
 
-                                                    div {
-                                                        class' "channel-item-title"
-                                                        item.Title
-                                                    }
+                                                div {
+                                                    class' "channel-item-title"
+                                                    item.Title
+                                                }
 
-                                                    div {
-                                                        class' "channel-item-description"
+                                                div {
+                                                    class' "channel-item-description"
 
-                                                        match item.ThumbnailUrl with
-                                                        | Some url ->
-                                                            img {
-                                                                src url
-                                                                loadingExperimental true
-                                                            }
-                                                        | None -> ()
+                                                    match item.ThumbnailUrl with
+                                                    | Some url ->
+                                                        img {
+                                                            src url
+                                                            loadingExperimental true
+                                                        }
+                                                    | None -> ()
 
-                                                        item.DescriptionText()
-                                                    }
+                                                    item.DescriptionText()
                                                 }
                                             })
 
@@ -268,6 +271,58 @@ module ContentPage =
                                         |> List.tryFindIndex ((=) element)
                                         |> Option.bind (fun i -> if 0 < i then Some list.[i - 1] else None)
 
+                                    let moveToNextItem (chItems: Types.ChannelItems, chItem: SelectedChannelItem) =
+                                        match chItems with
+                                        | NotLoadedFeedItemsList -> ()
+                                        | LoadedFeedItemsList items ->
+                                            match chItem with
+                                            | NotSelected -> ()
+                                            | Selected item ->
+                                                match tryGetNextElement (item, items) with
+                                                | None -> ()
+                                                | Some next ->
+                                                    setSelectedItem (SelectedChannelItem.Selected next)
+                                                    jsRuntime.InvokeAsync("ScrollToSelectedItem") |> ignore
+
+                                    let moveToPreviousItem (chItems: Types.ChannelItems, chItem: SelectedChannelItem) =
+                                        match chItems with
+                                        | NotLoadedFeedItemsList -> ()
+                                        | LoadedFeedItemsList items ->
+                                            match chItem with
+                                            | NotSelected -> ()
+                                            | Selected item ->
+                                                match tryGetPreviousElement (item, items) with
+                                                | None -> ()
+                                                | Some next ->
+                                                    setSelectedItem (SelectedChannelItem.Selected next)
+                                                    jsRuntime.InvokeAsync("ScrollToSelectedItem") |> ignore
+
+                                    let isDiasbledNextButton
+                                        (chItems: Types.ChannelItems, chItem: SelectedChannelItem)
+                                        =
+                                        match chItems with
+                                        | NotLoadedFeedItemsList -> true
+                                        | LoadedFeedItemsList items ->
+                                            match chItem with
+                                            | NotSelected -> true
+                                            | Selected item ->
+                                                match tryGetNextElement (item, items) with
+                                                | None -> true
+                                                | Some next -> false
+
+                                    let isDisabledPreviousButton
+                                        (chItems: Types.ChannelItems, chItem: SelectedChannelItem)
+                                        =
+                                        match chItems with
+                                        | NotLoadedFeedItemsList -> true
+                                        | LoadedFeedItemsList items ->
+                                            match chItem with
+                                            | NotSelected -> true
+                                            | Selected item ->
+                                                match tryGetPreviousElement (item, items) with
+                                                | None -> true
+                                                | Some next -> false
+
                                     let contentHtml =
                                         let txt =
                                             match selectedItem with
@@ -282,45 +337,22 @@ module ContentPage =
 
                                         txt.Replace("<a ", "<a onclick='OpenLink()' ")
 
-
-
                                     FluentCard'' {
+                                        id "contentCard"
                                         style' "height: 100%;overflow: auto;"
 
                                         FluentFlipper'' {
                                             style' "position: absolute; top: 50%;left:10px;"
-
                                             Direction FlipperDirection.Previous
-
-                                            onclick (fun _ ->
-                                                match store.FeedItems.Value with
-                                                | NotLoadedFeedItemsList -> ()
-                                                | LoadedFeedItemsList items ->
-                                                    match selectedItem with
-                                                    | NotSelected -> ()
-                                                    | Selected item ->
-                                                        match tryGetPreviousElement (item, items) with
-                                                        | None -> ()
-                                                        | Some next ->
-                                                            setSelectedItem (SelectedChannelItem.Selected next))
+                                            disabled (isDisabledPreviousButton (store.FeedItems.Value, selectedItem))
+                                            onclick (fun _ -> moveToPreviousItem (store.FeedItems.Value, selectedItem))
                                         }
 
                                         FluentFlipper'' {
                                             style' "position: absolute; top: 50%;right:10px;"
-
                                             Direction FlipperDirection.Next
-
-                                            onclick (fun _ ->
-                                                match store.FeedItems.Value with
-                                                | NotLoadedFeedItemsList -> ()
-                                                | LoadedFeedItemsList items ->
-                                                    match selectedItem with
-                                                    | NotSelected -> ()
-                                                    | Selected item ->
-                                                        match tryGetNextElement (item, items) with
-                                                        | None -> ()
-                                                        | Some next ->
-                                                            setSelectedItem (SelectedChannelItem.Selected next))
+                                            disabled (isDiasbledNextButton (store.FeedItems.Value, selectedItem))
+                                            onclick (fun _ -> moveToNextItem (store.FeedItems.Value, selectedItem))
                                         }
 
                                         div {
@@ -330,8 +362,6 @@ module ContentPage =
                                             childContentRaw (contentHtml)
                                         }
                                     }
-
-
                                 }
                             }
                         )
