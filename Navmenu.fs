@@ -10,17 +10,20 @@ module Navmenu =
     open Fun.Blazor
     open FeedViewer
 
-    let getIconPath (channel: Channel) =
-        let host = Uri(channel.Url).Host
-        let files = Directory.GetFiles(iconsDirectoryPath, $"{host}.*")
+    let getIconPath (channel: Channel option) =
+        match channel with
+        | None -> "icons/rss-button-orange.32.png"
+        | Some channel ->
+            let host = Uri(channel.Url).Host
+            let files = Directory.GetFiles(iconsDirectoryPath, $"{host}.*")
 
-        if files.Length > 0 then
-            $"icons/{Path.GetFileName(files.[0])}"
-        else
-            "icons/rss-button-orange.32.png"
+            if files.Length > 0 then
+                $"icons/{Path.GetFileName(files.[0])}"
+            else
+                "icons/rss-button-orange.32.png"
 
 
-    let getChannelIcon (channel: Channel) =
+    let getChannelIcon (channel: Channel option) =
         Icon(
             String.Empty,
             IconVariant.Regular,
@@ -35,7 +38,7 @@ module Navmenu =
                 Href $"/channel/{c.Id}"
                 Tooltip c.Title
                 Match NavLinkMatch.Prefix
-                Icon(getChannelIcon c)
+                Icon(getChannelIcon (Some(c)))
                 c.Title
             })
 

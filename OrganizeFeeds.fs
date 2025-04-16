@@ -269,7 +269,7 @@ module OrganizeFeeds =
 
                                 ChildContent(fun (c: Channel) ->
                                     img {
-                                        src (getIconPath c)
+                                        src (getIconPath(Some c))
                                         style' "width: 100%; height: 100%;cursor: pointer;"
                                         title' "Open site in browser"
 

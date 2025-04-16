@@ -88,10 +88,9 @@ module ContentPage =
                     | ChannelItems.LoadedFeedItemsList items -> items.Count()
                     | _ -> 0
 
-
                 fragment {
                     FluentStack'' {
-                        style' "height: 80px;"
+                        style' "height: 80px;margin-top: 5px"
                         Orientation Orientation.Horizontal
 
                         adapt {
@@ -103,21 +102,39 @@ module ContentPage =
                                 | ByChannelId _ -> "cursor: pointer"
                                 | _ -> ""
 
+                            let getIcon: Icon =
+                                match store.CurrentChannelId.Value with
+                                | All -> Icons.Regular.Size20.Document()
+                                | ReadLater -> Icons.Regular.Size20.Flag()
+                                | Starred -> Icons.Regular.Size20.Star()
+                                | ByChannelId channelId -> dataAccess.Channels.Get(channelId) |> Navmenu.getChannelIcon
+                                | ByGroupId _ -> Icons.Regular.Size20.Folder()
+
                             FluentStack'' {
                                 Orientation Orientation.Vertical
                                 width $"{leftPaneWidth}px;"
 
-                                FluentLabel'' {
-                                    Typo Typography.H4
-                                    Color Color.Accent
+                                FluentStack'' {
+                                    Orientation Orientation.Horizontal
 
-                                    style'
-                                        $"width:{h4width}px;{cursorStyle};white-space: nowrap;overflow: hidden;text-overflow: ellipsis;"
+                                    FluentIcon'' { value getIcon }
 
-                                    onclick (fun _ ->
-                                        openChannelLink (store.CurrentChannelId.Value, dataAccess, linkOpeningService))
+                                    FluentLabel'' {
+                                        Typo Typography.H5
+                                        Color Color.Accent
 
-                                    $"{title}({count})"
+                                        style'
+                                            $"width:{h4width}px;{cursorStyle};white-space: nowrap;overflow: hidden;text-overflow: ellipsis;font-weight: bold;"
+
+                                        onclick (fun _ ->
+                                            openChannelLink (
+                                                store.CurrentChannelId.Value,
+                                                dataAccess,
+                                                linkOpeningService
+                                            ))
+
+                                        $"{title}({count})"
+                                    }
                                 }
 
                                 FluentStack'' {
@@ -158,22 +175,45 @@ module ContentPage =
                                         | Some link -> link
                                         | None -> "#"
 
+                                    let channel = dataAccess.Channels.Get(selItem.ChannelId)
+
                                     a {
                                         class' "channel-item-title"
-                                        style' "font-size: 16px;"
+                                        style' "font-size: 18px;"
                                         title' selItem.Title
                                         href link
                                         onclick "OpenLink()"
                                         selItem.Title
                                     }
 
-                                    div {
-                                        style' "font-style: italic;font-size: 12px;"
+                                    FluentStack'' {
+                                        FluentIcon'' { value (Navmenu.getChannelIcon channel) }
+
+                                        match channel with
+                                        | None -> ""
+                                        | Some channel ->
+                                            FluentAnchor'' {
+                                                Appearance Appearance.Hypertext
+                                                style' "font-size: 16px;"
+                                                href "#"
+
+                                                OnClick(fun _ ->
+                                                    match channel.Link with
+                                                    | None -> linkOpeningService.OpenUrl(channel.Url)
+                                                    | Some link -> linkOpeningService.OpenUrl(link))
+
+                                                channel.Title
+                                            }
 
                                         match selItem.PublishingDate with
-                                        | Some date -> date.ToLongDateString()
+                                        | Some date ->
+                                            span {
+                                                style' "font-style: italic;font-size: 12px;"
+                                                date.ToLongDateString()
+                                            }
                                         | None -> ""
                                     }
+
                             }
                         }
                     }
@@ -183,7 +223,7 @@ module ContentPage =
                         Panel1MinSize "200px"
                         Panel1Size "350px"
                         Panel2MinSize "200px"
-                        style' "height: calc(100% - 80px);"
+                        style' "height: calc(100% - 85px);"
 
                         OnResized(fun args -> store.LeftPaneWidth.Publish(args.Panel1Size))
 
