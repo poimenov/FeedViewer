@@ -8,6 +8,7 @@ module ContentPage =
     open Fun.Blazor
     open FeedViewer
     open System
+    open Microsoft.AspNetCore.Components
 
     let load (id: ChannelId, store: IShareStore, dataAccess: IDataAccess) =
         match id with
@@ -212,6 +213,38 @@ module ContentPage =
                                                 date.ToLongDateString()
                                             }
                                         | None -> ""
+                                    }
+
+                                    FluentStack'' {
+                                        // FluentCheckbox'' {
+                                        //     Value selItem.IsReadLater
+                                        //     ValueChanged(fun x -> setReadLater (x))
+                                        // }
+
+                                        MyCheckBox.Create(
+                                            selItem.IsReadLater,
+                                            "Set Read Later",
+                                            Icons.Filled.Size16.Flag(),
+                                            Icons.Regular.Size16.Flag(),
+                                            (fun b ->
+                                                let mutable item = selItem
+                                                item.IsReadLater <- b
+                                                dataAccess.ChannelItems.SetReadLater(item.Id, b)
+                                                setSelectedItem (SelectedChannelItem.Selected item))
+                                        )
+
+
+                                        MyCheckBox.Create(
+                                            selItem.IsFavorite,
+                                            "Set Favorite",
+                                            Icons.Filled.Size16.Star(),
+                                            Icons.Regular.Size16.Star(),
+                                            (fun b ->
+                                                let mutable item = selItem
+                                                item.IsFavorite <- b
+                                                dataAccess.ChannelItems.SetFavorite(item.Id, b)
+                                                setSelectedItem (SelectedChannelItem.Selected item))
+                                        )
                                     }
 
                             }

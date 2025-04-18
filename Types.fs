@@ -8,6 +8,7 @@ module Types =
     open Fun.Blazor
     open FeedViewer
     open System
+    open System.Linq.Expressions
 
     type public OpenLinkProvider(los: ILinkOpeningService) =
         [<JSInvokable>]
@@ -72,7 +73,8 @@ module Types =
         member store.FeedItems =
             store.CreateCVal(nameof store.FeedItems, ChannelItems.NotLoadedFeedItemsList)
 
-        member store.CurrentChannelId = store.CreateCVal(nameof store.CurrentChannelId, ChannelId.All)
+        member store.CurrentChannelId =
+            store.CreateCVal(nameof store.CurrentChannelId, ChannelId.All)
 
     type FeedGroupDialog() =
         inherit FunComponent()
@@ -277,3 +279,48 @@ module Types =
                     }
                 }
             }
+
+    type MyCheckBox() =
+        inherit FunBlazorComponent()
+
+        [<Parameter>]
+        member val Value = false with get, set
+
+        [<Parameter>]
+        member val Title = "" with get, set
+
+        [<Parameter>]
+        member val CheckedIcon = Unchecked.defaultof<Icon> with get, set
+
+        [<Parameter>]
+        member val UnCheckedIcon = Unchecked.defaultof<Icon> with get, set
+
+        [<Parameter>]
+        member val OnValueChanged = Unchecked.defaultof<EventCallback<bool>> with get, set
+
+        override this.Render() =
+            adapt {
+                FluentButton'' {
+                    IconStart(if this.Value then this.CheckedIcon else this.UnCheckedIcon)
+                    style' "height: 20px;"
+                    title' this.Title
+
+                    OnClick(fun _ ->
+                        let newValue = not this.Value
+                        this.Value <- newValue
+                        this.StateHasChanged()
+                        this.OnValueChanged.InvokeAsync(newValue) |> ignore)
+                }
+            }
+
+    type MyCheckBox with
+        static member Create
+            (value: bool, title: string, checkedIcon: Icon, unCheckedIcon: Icon, onValueChanged: (bool -> unit)) =
+            html.blazor<MyCheckBox> (
+                ComponentAttrBuilder<MyCheckBox>()
+                    .Add((fun x -> x.Value), value)
+                    .Add((fun x -> x.Title), title)
+                    .Add((fun x -> x.CheckedIcon), checkedIcon)
+                    .Add((fun x -> x.UnCheckedIcon), unCheckedIcon)
+                    .Add((fun x -> x.OnValueChanged), EventCallback<bool>(null, Action<bool> onValueChanged))
+            )
