@@ -67,6 +67,9 @@ let main args =
         .SetSize(1024, 768)
         .SetIconFile(Path.Combine("wwwroot", "favicon.ico"))
         .SetTitle("FeedViewer")
+        .RegisterWindowClosingHandler(fun _ _ ->
+            application.Services.GetRequiredService<IChannelItems>().Delete()
+            false)
     |> ignore
 
     AppDomain.CurrentDomain.UnhandledException.Add(fun e ->

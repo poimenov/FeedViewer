@@ -7,8 +7,6 @@ module ContentPage =
     open Microsoft.JSInterop
     open Fun.Blazor
     open FeedViewer
-    open System
-    open Microsoft.AspNetCore.Components
 
     let load (id: ChannelId, store: IShareStore, dataAccess: IDataAccess) =
         match id with
@@ -162,6 +160,7 @@ module ContentPage =
                         }
 
                         adapt {
+                            let! feedItems, setFeedItems = store.FeedItems.WithSetter()
                             let! selectedItem, setSelectedItem = store.SelectedChannelItem.WithSetter()
                             let! leftPaneWidth, setLeftPaneWidth = store.LeftPaneWidth.WithSetter()
 
@@ -177,6 +176,14 @@ module ContentPage =
                                         | None -> "#"
 
                                     let channel = dataAccess.Channels.Get(selItem.ChannelId)
+
+                                    let setRead (chItem: ChannelItem, read: bool) =
+                                        let mutable item = chItem
+                                        item.IsRead <- read
+                                        dataAccess.ChannelItems.SetRead(item.Id, read)
+                                        setSelectedItem (SelectedChannelItem.Selected item)
+
+                                    setRead (selItem, true)
 
                                     a {
                                         class' "channel-item-title"
@@ -216,10 +223,13 @@ module ContentPage =
                                     }
 
                                     FluentStack'' {
-                                        // FluentCheckbox'' {
-                                        //     Value selItem.IsReadLater
-                                        //     ValueChanged(fun x -> setReadLater (x))
-                                        // }
+                                        MyCheckBox.Create(
+                                            selItem.IsRead,
+                                            "Set As Read",
+                                            Icons.Filled.Size16.CheckboxChecked(),
+                                            Icons.Regular.Size16.CheckboxUnchecked(),
+                                            (fun b -> setRead (selItem, b))
+                                        )
 
                                         MyCheckBox.Create(
                                             selItem.IsReadLater,
@@ -233,7 +243,6 @@ module ContentPage =
                                                 setSelectedItem (SelectedChannelItem.Selected item))
                                         )
 
-
                                         MyCheckBox.Create(
                                             selItem.IsFavorite,
                                             "Set Favorite",
@@ -245,8 +254,46 @@ module ContentPage =
                                                 dataAccess.ChannelItems.SetFavorite(item.Id, b)
                                                 setSelectedItem (SelectedChannelItem.Selected item))
                                         )
-                                    }
 
+                                        FluentButton'' {
+                                            IconStart(Icons.Regular.Size16.Delete())
+                                            style' "height: 20px;"
+                                            title' "Delete"
+
+                                            OnClick(fun _ ->
+                                                let mutable item = selItem
+                                                item.IsDeleted <- true
+                                                item.IsRead <- true
+                                                dataAccess.ChannelItems.SetDeleted(item.Id, true)
+
+                                                let items =
+                                                    match feedItems with
+                                                    | NotLoadedFeedItemsList -> []
+                                                    | LoadedFeedItemsList lst -> lst
+
+                                                match items |> List.tryFindIndex ((=) selItem) with
+                                                | Some index ->
+                                                    let updatedItems = items |> List.removeAt index
+                                                    setFeedItems (LoadedFeedItemsList updatedItems)
+
+                                                    match updatedItems |> List.tryItem index with
+                                                    | Some nextItem ->
+                                                        setSelectedItem (SelectedChannelItem.Selected nextItem)
+                                                    | None ->
+                                                        if updatedItems.Length > 0 && index > 0 then
+                                                            match updatedItems |> List.tryItem (index - 1) with
+                                                            | Some prevItem ->
+                                                                setSelectedItem (
+                                                                    SelectedChannelItem.Selected prevItem
+                                                                )
+                                                            | None -> setSelectedItem NotSelected
+                                                        else
+                                                            setSelectedItem NotSelected
+                                                | None -> setSelectedItem NotSelected
+
+                                            )
+                                        }
+                                    }
                             }
                         }
                     }

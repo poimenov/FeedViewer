@@ -343,6 +343,7 @@ type Channels(connectionService: IConnectionService) =
 
 type IChannelItems =
     abstract member Create: ChannelItem -> int64
+    abstract member Delete: unit -> unit
     abstract member SetRead: int64 * bool -> unit
     abstract member SetReadByGroupId: int * bool -> unit
     abstract member SetReadByChannelId: int * bool -> unit
@@ -463,6 +464,12 @@ type ChannelItems(connectionService: IConnectionService) =
 
                 id)
 
+        member this.Delete() : unit =
+            use conn = connectionService.GetConnection()
+
+            use cmd = conn |> Db.newCommand "DELETE FROM ChannelItems WHERE IsDeleted = 1"
+
+            cmd |> Db.exec
 
         member this.GetByCategory(categoryId: int) =
             use conn = connectionService.GetConnection()
