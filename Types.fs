@@ -8,7 +8,6 @@ module Types =
     open Fun.Blazor
     open FeedViewer
     open System
-    open System.Linq.Expressions
 
     type public OpenLinkProvider(los: ILinkOpeningService) =
         [<JSInvokable>]
@@ -75,6 +74,14 @@ module Types =
 
         member store.CurrentChannelId =
             store.CreateCVal(nameof store.CurrentChannelId, ChannelId.All)
+
+        member store.CurrentIsRead = store.CreateCVal(nameof store.CurrentIsRead, false)
+
+        member store.CurrentIsReadLater =
+            store.CreateCVal(nameof store.CurrentIsReadLater, false)
+
+        member store.CurrentIsFavorite =
+            store.CreateCVal(nameof store.CurrentIsFavorite, false)
 
     type FeedGroupDialog() =
         inherit FunComponent()

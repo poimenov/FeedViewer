@@ -335,7 +335,7 @@ type IconDownloader(http: IHttpHandler, logger: ILogger<IconDownloader>) =
                         let ext = (this :> IIconDownloader).GetIconExtension data
 
                         if ext.IsSome then
-                            let fileName = $"{uriToDownload.Host}{ext}"
+                            let fileName = $"{uriToDownload.Host}{ext.Value}"
                             let filePath = Path.Combine(iconsDirectoryPath, fileName)
                             File.WriteAllBytes(filePath, data)
                 with ex ->

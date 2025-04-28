@@ -5,6 +5,7 @@ module ContentPage =
     open Microsoft.AspNetCore.Components.Web.Virtualization
     open Microsoft.FluentUI.AspNetCore.Components
     open Microsoft.JSInterop
+    open FSharp.Data.Adaptive
     open Fun.Blazor
     open FeedViewer
 
@@ -84,7 +85,7 @@ module ContentPage =
 
                 let count =
                     match store.FeedItems.Value with
-                    | ChannelItems.LoadedFeedItemsList items -> items.Count()
+                    | ChannelItems.LoadedFeedItemsList items -> items.Length
                     | _ -> 0
 
                 fragment {
@@ -106,8 +107,12 @@ module ContentPage =
                                 | All -> Icons.Regular.Size20.Document()
                                 | ReadLater -> Icons.Regular.Size20.Flag()
                                 | Starred -> Icons.Regular.Size20.Star()
-                                | ByChannelId channelId -> dataAccess.Channels.Get(channelId) |> Navmenu.getChannelIcon
+                                | ByChannelId channelId ->
+                                    dataAccess.Channels.Get(channelId) |> Navmenu.getChannelIcon20
                                 | ByGroupId _ -> Icons.Regular.Size20.Folder()
+
+
+                            let! synchronizeButtonDisabled, setSynchronizeButtonDisabled = cval(false).WithSetter()
 
                             FluentStack'' {
                                 Orientation Orientation.Vertical
@@ -141,16 +146,31 @@ module ContentPage =
 
                                     FluentButton'' {
                                         IconStart(Icons.Regular.Size20.CheckmarkCircle())
+
+                                        OnClick(fun _ ->
+                                            match store.CurrentChannelId.Value with
+                                            | ByChannelId channelId ->
+                                                dataAccess.ChannelItems.SetReadByChannelId(channelId, true)
+                                            | ByGroupId groupId ->
+                                                dataAccess.ChannelItems.SetReadByGroupId(groupId, true)
+                                            | All -> dataAccess.ChannelItems.SetReadAll(true)
+                                            | _ -> ()
+
+                                            load (store.CurrentChannelId.Value, store, dataAccess))
+
                                         "Mark All Read"
                                     }
 
                                     FluentButton'' {
                                         IconStart(Icons.Regular.Size20.ArrowSyncCircle())
+                                        disabled synchronizeButtonDisabled
 
                                         OnClick(fun _ ->
                                             task {
+                                                setSynchronizeButtonDisabled true
                                                 let! chnls = update (store.CurrentChannelId.Value, reader)
                                                 load (store.CurrentChannelId.Value, store, dataAccess)
+                                                setSynchronizeButtonDisabled false
                                             })
 
                                         "Synchronize"
@@ -178,12 +198,14 @@ module ContentPage =
                                     let channel = dataAccess.Channels.Get(selItem.ChannelId)
 
                                     let setRead (chItem: ChannelItem, read: bool) =
-                                        let mutable item = chItem
-                                        item.IsRead <- read
-                                        dataAccess.ChannelItems.SetRead(item.Id, read)
-                                        setSelectedItem (SelectedChannelItem.Selected item)
+                                        chItem.IsRead <- read
+                                        dataAccess.ChannelItems.SetRead(chItem.Id, read)
+                                        store.CurrentIsRead.Publish(read)
+                                        setSelectedItem (SelectedChannelItem.Selected chItem)
 
                                     setRead (selItem, true)
+                                    store.CurrentIsReadLater.Publish(selItem.IsReadLater)
+                                    store.CurrentIsFavorite.Publish(selItem.IsFavorite)
 
                                     a {
                                         class' "channel-item-title"
@@ -195,34 +217,42 @@ module ContentPage =
                                     }
 
                                     FluentStack'' {
-                                        FluentIcon'' { value (Navmenu.getChannelIcon channel) }
+                                        FluentIcon'' { value (Navmenu.getChannelIcon20 channel) }
 
                                         match channel with
                                         | None -> ""
                                         | Some channel ->
-                                            FluentAnchor'' {
-                                                Appearance Appearance.Hypertext
-                                                style' "font-size: 16px;"
-                                                href "#"
+                                            span {
+                                                class' "channel-name"
 
-                                                OnClick(fun _ ->
-                                                    match channel.Link with
-                                                    | None -> linkOpeningService.OpenUrl(channel.Url)
-                                                    | Some link -> linkOpeningService.OpenUrl(link))
+                                                FluentAnchor'' {
+                                                    Appearance Appearance.Hypertext
+                                                    style' "font-size: 16px;"
+                                                    class' "channel-name"
+                                                    href "#"
 
-                                                channel.Title
+                                                    OnClick(fun _ ->
+                                                        match channel.Link with
+                                                        | None -> linkOpeningService.OpenUrl(channel.Url)
+                                                        | Some link -> linkOpeningService.OpenUrl(link))
+
+                                                    channel.Title
+                                                }
                                             }
 
                                         match selItem.PublishingDate with
                                         | Some date ->
                                             span {
-                                                style' "font-style: italic;font-size: 12px;"
+                                                style' "font-style: italic;font-size: 12px;white-space: nowrap;"
                                                 date.ToLongDateString()
                                             }
                                         | None -> ""
                                     }
 
                                     FluentStack'' {
+                                        Orientation Orientation.Horizontal
+                                        HorizontalGap 2
+
                                         MyCheckBox.Create(
                                             selItem.IsRead,
                                             "Set As Read",
@@ -240,6 +270,7 @@ module ContentPage =
                                                 let mutable item = selItem
                                                 item.IsReadLater <- b
                                                 dataAccess.ChannelItems.SetReadLater(item.Id, b)
+                                                store.CurrentIsReadLater.Publish(b)
                                                 setSelectedItem (SelectedChannelItem.Selected item))
                                         )
 
@@ -252,6 +283,7 @@ module ContentPage =
                                                 let mutable item = selItem
                                                 item.IsFavorite <- b
                                                 dataAccess.ChannelItems.SetFavorite(item.Id, b)
+                                                store.CurrentIsFavorite.Publish(b)
                                                 setSelectedItem (SelectedChannelItem.Selected item))
                                         )
 
@@ -311,6 +343,12 @@ module ContentPage =
                             div {
                                 adapt {
                                     let! feedItems, setFeedItems = store.FeedItems.WithSetter()
+                                    let! currentIsRead, setCurrentIsRead = store.CurrentIsRead.WithSetter()
+
+                                    let! currentIsReadLater, setCurrentIsReadLater =
+                                        store.CurrentIsReadLater.WithSetter()
+
+                                    let! currentIsFavorite, setCurrentIsFavorite = store.CurrentIsFavorite.WithSetter()
 
                                     let items =
                                         match feedItems with
@@ -319,17 +357,58 @@ module ContentPage =
 
                                     let! selectedItem, setSelectedItem = store.SelectedChannelItem.WithSetter()
 
-                                    let getSelectedClass (curr: ChannelItem) =
-                                        let defaultClassName = "channel-item"
-                                        let selectedClassName = "channel-item selected-channel-item"
-
+                                    let channel =
                                         match selectedItem with
-                                        | NotSelected -> defaultClassName
-                                        | Selected item ->
-                                            if curr.Id = item.Id then
-                                                selectedClassName
+                                        | NotSelected -> None
+                                        | Selected item -> dataAccess.Channels.Get(item.ChannelId)
+
+                                    let channelName =
+                                        match channel with
+                                        | Some c -> c.Title
+                                        | None -> ""
+
+                                    let isCurrent (curr: ChannelItem) =
+                                        match selectedItem with
+                                        | NotSelected -> false
+                                        | Selected item -> curr.Id = item.Id
+
+                                    let getSelectedClass (curr: ChannelItem) =
+                                        if isCurrent curr then
+                                            "channel-item selected-channel-item"
+                                        else
+                                            "channel-item"
+
+                                    let getIsCheckedIcon (item: ChannelItem) : Icon =
+                                        let isRead = if isCurrent item then currentIsRead else item.IsRead
+
+                                        if isRead then
+                                            Icons.Filled.Size16.CheckboxChecked()
+                                        else
+                                            Icons.Filled.Size16.CheckboxUnchecked()
+
+                                    let getIsReadLaterIcon (item: ChannelItem) : Icon =
+                                        let isReadLater =
+                                            if isCurrent item then
+                                                currentIsReadLater
                                             else
-                                                defaultClassName
+                                                item.IsReadLater
+
+                                        if isReadLater then
+                                            Icons.Filled.Size16.Flag()
+                                        else
+                                            Icons.Regular.Size16.Flag()
+
+                                    let getIsFavoriteIcon (item: ChannelItem) : Icon =
+                                        let isFavorite =
+                                            if isCurrent item then
+                                                currentIsFavorite
+                                            else
+                                                item.IsFavorite
+
+                                        if isFavorite then
+                                            Icons.Filled.Size16.Star()
+                                        else
+                                            Icons.Regular.Size16.Star()
 
                                     Virtualize'' {
                                         Items(items.ToList<ChannelItem>())
@@ -338,6 +417,13 @@ module ContentPage =
                                             div {
                                                 class' (getSelectedClass item)
 
+                                                style' (
+                                                    if item.IsRead then
+                                                        "color: var(--neutral-foreground-hover);"
+                                                    else
+                                                        "color: var(--neutral-foreground-rest);"
+                                                )
+
                                                 onclick (fun _ ->
                                                     let selected = SelectedChannelItem.Selected(item)
                                                     store.SelectedChannelItem.Publish(selected))
@@ -345,6 +431,35 @@ module ContentPage =
                                                 div {
                                                     class' "channel-item-title"
                                                     item.Title
+                                                }
+
+                                                FluentStack'' {
+                                                    Orientation Orientation.Horizontal
+                                                    HorizontalGap 2
+
+                                                    FluentIcon'' {
+                                                        value (Navmenu.getChannelIcon (channel, IconSize.Size16))
+                                                    }
+
+                                                    span {
+                                                        class' "channel-name"
+
+                                                        channelName
+                                                    }
+
+                                                    FluentSpacer''
+
+                                                    match item.PublishingDate with
+                                                    | Some date ->
+                                                        span {
+                                                            style' "font-style: italic;font-size: 12px;"
+                                                            date.ToShortDateString()
+                                                        }
+                                                    | None -> ""
+
+                                                    FluentIcon'' { Value(getIsCheckedIcon item) }
+                                                    FluentIcon'' { Value(getIsReadLaterIcon item) }
+                                                    FluentIcon'' { Value(getIsFavoriteIcon item) }
                                                 }
 
                                                 div {

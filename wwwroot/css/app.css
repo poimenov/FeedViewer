@@ -179,3 +179,10 @@ footer a:hover {
     white-space: -o-pre-wrap;
     word-wrap: break-word;
 }
+
+.channel-name {
+    min-width: 190px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}

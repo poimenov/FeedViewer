@@ -5,7 +5,6 @@ module Navmenu =
     open System.IO
     open Microsoft.AspNetCore.Components
     open Microsoft.AspNetCore.Components.Routing
-    open Microsoft.Extensions.Logging
     open Microsoft.FluentUI.AspNetCore.Components
     open Fun.Blazor
     open FeedViewer
@@ -23,13 +22,13 @@ module Navmenu =
                 "icons/rss-button-orange.32.png"
 
 
-    let getChannelIcon (channel: Channel option) =
-        Icon(
-            String.Empty,
-            IconVariant.Regular,
-            IconSize.Size20,
-            $"<img src=\"{getIconPath (channel)}\"  style=\"width: 100%%;\" />"
-        )
+    let getIcon (src: String, size: IconSize) =
+        Icon(String.Empty, IconVariant.Regular, size, $"<img src=\"{src}\"  style=\"width: 100%%;\" />")
+
+    let getChannelIcon (channel: Channel option, size: IconSize) = getIcon (getIconPath (channel), size)
+
+    let getChannelIcon20 (channel: Channel option) =
+        getIcon (getIconPath (channel), IconSize.Size20)
 
     let getNavLinks (channels: list<Channel>) =
         channels
@@ -38,7 +37,7 @@ module Navmenu =
                 Href $"/channel/{c.Id}"
                 Tooltip c.Title
                 Match NavLinkMatch.Prefix
-                Icon(getChannelIcon (Some(c)))
+                Icon(getChannelIcon20 (Some(c)))
                 c.Title
             })
 
@@ -48,21 +47,24 @@ module Navmenu =
                 (store: IShareStore,
                  hook: IComponentHook,
                  navigation: NavigationManager,
-                 logger: ILogger<_>,
-                 groups: IChannelGroups,
-                 channels: IChannels,
+                 dataAccess: IDataAccess,
                  channelReader: IChannelReader) ->
                 hook.AddInitializedTask(fun () ->
                     task {
-                        // Async.StartWithContinuations(
-                        //     channelReader.ReadAllChannelsAsync(),
-                        //     (fun _ -> navigation.NavigateTo("/channel/all")),
-                        //     (fun ex ->
-                        //         printfn "%A" ex
-                        //         logger.LogError(ex, "Error in App.navmenus")),
-                        //     (fun _ -> ())
-                        // )
-                        printfn "navmenus"
+                        Async.StartWithContinuations(
+                            channelReader.ReadAllChannelsAsync(),
+                            (fun _ ->
+                                match store.CurrentChannelId.Value with
+                                | All -> navigation.NavigateTo("/channel/all")
+                                | ReadLater -> navigation.NavigateTo("/channel/readlater")
+                                | Starred -> navigation.NavigateTo("/channel/starred")
+                                | ByGroupId groupId -> navigation.NavigateTo($"/group/{groupId}")
+                                | ByChannelId channelId -> navigation.NavigateTo($"/channel/{channelId}")),
+                            (fun ex -> printfn "%A" ex),
+                            (fun _ -> ())
+                        )
+
+                    //printfn "navmenus"
                     })
 
                 adaptiview () {
@@ -112,7 +114,7 @@ module Navmenu =
                             }
 
                             yield!
-                                groups.GetAll()
+                                dataAccess.ChannelsGroups.GetAll()
                                 |> Seq.map (fun g ->
                                     FluentNavGroup'' {
                                         title' g.Name
@@ -126,10 +128,10 @@ module Navmenu =
                                             else
                                                 setExpGroupsCount (expGroupsCount - 1))
 
-                                        yield! channels.GetByGroupId(Some(g.Id)) |> getNavLinks
+                                        yield! dataAccess.Channels.GetByGroupId(Some(g.Id)) |> getNavLinks
                                     })
 
-                            yield! channels.GetByGroupId(None) |> getNavLinks
+                            yield! dataAccess.Channels.GetByGroupId(None) |> getNavLinks
                         }
                     }
                 })
