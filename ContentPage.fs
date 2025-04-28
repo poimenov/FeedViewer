@@ -357,13 +357,10 @@ module ContentPage =
 
                                     let! selectedItem, setSelectedItem = store.SelectedChannelItem.WithSetter()
 
-                                    let channel =
-                                        match selectedItem with
-                                        | NotSelected -> None
-                                        | Selected item -> dataAccess.Channels.Get(item.ChannelId)
+                                    let channel (curr: ChannelItem) = dataAccess.Channels.Get(curr.ChannelId)
 
-                                    let channelName =
-                                        match channel with
+                                    let channelName (curr: ChannelItem) =
+                                        match channel curr with
                                         | Some c -> c.Title
                                         | None -> ""
 
@@ -438,13 +435,13 @@ module ContentPage =
                                                     HorizontalGap 2
 
                                                     FluentIcon'' {
-                                                        value (Navmenu.getChannelIcon (channel, IconSize.Size16))
+                                                        value (Navmenu.getChannelIcon (channel item, IconSize.Size16))
                                                     }
 
                                                     span {
                                                         class' "channel-name"
 
-                                                        channelName
+                                                        channelName item
                                                     }
 
                                                     FluentSpacer''
