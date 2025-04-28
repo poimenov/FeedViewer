@@ -257,12 +257,18 @@ type IconDownloader(http: IHttpHandler, logger: ILogger<IconDownloader>) =
                         if imageUri.IsNone then
                             let! doc = http.LoadFromWebAsync(siteUri.Value.ToString()) |> Async.AwaitTask
 
+                            let allowedHref (href: string) =
+                                let extensions = [| ".png"; ".jpg"; ".jpeg"; ".gif"; ".webp"; ".bmp"; ".ico" |]
+                                let hrefFilePath = href.Substring(0, href.IndexOf("?"))
+                                extensions |> Array.exists (fun ext -> hrefFilePath.EndsWith(ext))
+
                             let links =
                                 doc.Descendants [ "link" ]
                                 |> Seq.filter (fun x ->
-                                    x.HasAttribute("rel", "icon")
-                                    || x.HasAttribute("rel", "shortcut icon")
-                                    || x.HasAttribute("rel", "apple-touch-icon"))
+                                    (x.HasAttribute("rel", "icon")
+                                     || x.HasAttribute("rel", "shortcut icon")
+                                     || x.HasAttribute("rel", "apple-touch-icon"))
+                                    && (x.AttributeValue("href") |> allowedHref))
                                 |> Seq.toArray
 
                             if links.Length > 0 then
@@ -423,10 +429,13 @@ type ChannelReader
                                 Some(Uri feed.ImageUrl)
 
                         let siteLink =
-                            if channel.Link.IsSome then
-                                channel.Link.Value
-                            else
-                                Uri(channel.Url).GetLeftPart UriPartial.Authority
+                            let sLink =
+                                if channel.Link.IsSome then
+                                    channel.Link.Value
+                                else
+                                    channel.Url
+
+                            Uri(sLink).GetLeftPart UriPartial.Authority
 
                         let siteUri =
                             if String.IsNullOrEmpty siteLink then
