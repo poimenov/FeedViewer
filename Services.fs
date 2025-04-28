@@ -235,14 +235,14 @@ type HttpHandler() =
             |> Async.StartAsTask
 
 type IIconDownloader =
-    abstract member DownloadIconAsync: Uri option * Uri option * string -> Async<unit>
+    abstract member DownloadIconAsync: string * Uri option * Uri option * string -> Async<unit>
     abstract member GetIconExtension: byte[] -> string option
-    abstract member SaveIconAsync: string * Uri option * string -> Async<unit>
+    abstract member SaveIconAsync: string * string * Uri option * string -> Async<unit>
 
 type IconDownloader(http: IHttpHandler, logger: ILogger<IconDownloader>) =
     interface IIconDownloader with
         member this.DownloadIconAsync
-            (imageUri: Uri option, siteUri: Uri option, iconsDirectoryPath: string)
+            (iconName: string, imageUri: Uri option, siteUri: Uri option, iconsDirectoryPath: string)
             : Async<unit> =
             async {
                 if imageUri.IsNone && siteUri.IsNone then
@@ -268,11 +268,16 @@ type IconDownloader(http: IHttpHandler, logger: ILogger<IconDownloader>) =
                             if links.Length > 0 then
                                 do!
                                     (this :> IIconDownloader)
-                                        .SaveIconAsync(links[0].AttributeValue("href"), Some(uri), iconsDirectoryPath)
+                                        .SaveIconAsync(
+                                            iconName,
+                                            links[0].AttributeValue("href"),
+                                            Some(uri),
+                                            iconsDirectoryPath
+                                        )
                         else
                             do!
                                 (this :> IIconDownloader)
-                                    .SaveIconAsync(imageUri.Value.ToString(), None, iconsDirectoryPath)
+                                    .SaveIconAsync(iconName, imageUri.Value.ToString(), None, iconsDirectoryPath)
 
                     | _ -> ()
 
@@ -321,7 +326,9 @@ type IconDownloader(http: IHttpHandler, logger: ILogger<IconDownloader>) =
             else
                 None
 
-        member this.SaveIconAsync(url: string, host: Uri option, iconsDirectoryPath: string) : Async<unit> =
+        member this.SaveIconAsync
+            (iconName: string, url: string, host: Uri option, iconsDirectoryPath: string)
+            : Async<unit> =
             async {
                 let uriToDownload =
                     match host with
@@ -335,7 +342,7 @@ type IconDownloader(http: IHttpHandler, logger: ILogger<IconDownloader>) =
                         let ext = (this :> IIconDownloader).GetIconExtension data
 
                         if ext.IsSome then
-                            let fileName = $"{uriToDownload.Host}{ext.Value}"
+                            let fileName = $"{iconName}{ext.Value}"
                             let filePath = Path.Combine(iconsDirectoryPath, fileName)
                             File.WriteAllBytes(filePath, data)
                 with ex ->
@@ -427,7 +434,13 @@ type ChannelReader
                             else
                                 Some(Uri siteLink)
 
-                        do! iconDownloader.DownloadIconAsync(imageUrl, siteUri, iconsDirectoryPath)
+                        do!
+                            iconDownloader.DownloadIconAsync(
+                                Uri(channel.Url).Host,
+                                imageUrl,
+                                siteUri,
+                                iconsDirectoryPath
+                            )
 
                         lock locker (fun () ->
                             if not (String.IsNullOrEmpty feed.Title) then
