@@ -12,7 +12,7 @@ CREATE TABLE "Channels" (
     "Url" TEXT NOT NULL,
     "ImageUrl" TEXT NULL,
     "Language" TEXT NULL,
-    CONSTRAINT "FK_Channels_ChannelsGroups_ChannelsGroupId" FOREIGN KEY ("ChannelsGroupId") REFERENCES "ChannelsGroups" ("Id")
+    CONSTRAINT "FK_Channels_ChannelsGroups_ChannelsGroupId" FOREIGN KEY ("ChannelsGroupId") REFERENCES "ChannelsGroups" ("Id") ON DELETE CASCADE
 );
 
 CREATE TABLE "ChannelItems" (
@@ -41,7 +41,7 @@ CREATE TABLE "ItemCategories" (
     "ChannelItemId" INTEGER NOT NULL,
     "CategoryId" INTEGER NOT NULL,
     CONSTRAINT "FK_ItemCategories_Categories_CategoryId" FOREIGN KEY ("CategoryId") REFERENCES "Categories" ("Id") ON DELETE CASCADE,
-    CONSTRAINT "FK_ItemCategories_ChannelItems_ChannelItemId" FOREIGN KEY ("ChannelItemId") REFERENCES "ChannelItems" ("Id") ON DELETE CASCADE
+    CONSTRAINT "FK_ItemCategories_ChannelItems_ChannelItemId" FOREIGN KEY ("ChannelItemId") REFERENCES "ChannelItems" ("Id")
 );
 
 CREATE INDEX "IX_ChannelItems_ChannelId" ON "ChannelItems" ("ChannelId");

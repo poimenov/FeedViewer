@@ -144,7 +144,7 @@ module ContentPage =
                                             services.LinkOpeningService
                                         ))
 
-                                    $"{title}({unreadCount})"
+                                    $"{title} ({unreadCount})"
                                 }
                             }
 
@@ -238,6 +238,12 @@ module ContentPage =
                                                 style' "font-size: 16px;"
                                                 class' "channel-name"
                                                 href "#"
+
+                                                title' (
+                                                    match channel.Description with
+                                                    | Some description -> description
+                                                    | None -> channel.Title
+                                                )
 
                                                 OnClick(fun _ ->
                                                     match channel.Link with
@@ -345,7 +351,7 @@ module ContentPage =
                                                 parameters.Content <- data
                                                 parameters.Title <- "Categories"
                                                 parameters.Alignment <- HorizontalAlignment.Right
-                                                parameters.Width <- "250px"
+                                                parameters.Width <- "260px"
                                                 parameters.Modal <- true
                                                 parameters.PrimaryAction <- null
                                                 parameters.SecondaryAction <- null

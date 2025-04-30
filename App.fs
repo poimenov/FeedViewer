@@ -171,9 +171,10 @@ module App =
                 })
 
             FluentFooter'' {
-                a {
-                    href "https://slaveoftime.github.io/Fun.Blazor.Docs/"
-                    onclick "OpenLink()"
+                FluentAnchor'' {
+                    Appearance Appearance.Hypertext
+                    href "#"
+                    OnClick(fun _ -> los.OpenUrl "https://slaveoftime.github.io/Fun.Blazor.Docs/")
                     "Fun.Blazor"
                 }
 
