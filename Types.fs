@@ -83,6 +83,8 @@ module Types =
         member store.CurrentIsFavorite =
             store.CreateCVal(nameof store.CurrentIsFavorite, false)
 
+        member store.UnreadCount = store.CreateCVal(nameof store.UnreadCount, 0)
+
     type FeedGroupDialog() =
         inherit FunComponent()
 

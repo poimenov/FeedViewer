@@ -160,7 +160,7 @@ type ChannelGroups(connectionService: IConnectionService) =
                 conn
                 |> Db.newCommand
                     "SELECT COUNT(*) FROM ChannelItems CI INNER JOIN Channels C
-                        ON CI.ChannelId = C.Id WHERE C.ChannelsGroupId = @ChannelsGroupId;"
+                        ON CI.ChannelId = C.Id WHERE C.ChannelsGroupId = @ChannelsGroupId AND CI.IsRead = 0;"
                 |> Db.setParams [ "ChannelsGroupId", SqlType.Int groupId ]
 
             cmd |> Db.scalar Convert.ToInt32

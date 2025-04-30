@@ -54,6 +54,14 @@ module ContentPage =
             | _ -> ignore ()
         | _ -> ignore ()
 
+    let getUnreadCount (id: ChannelId, dataAccess: IDataAccess) =
+        match id with
+        | All -> dataAccess.Channels.GetAllUnreadCount()
+        | ReadLater -> dataAccess.Channels.GetReadLaterCount()
+        | Starred -> dataAccess.Channels.GetStarredCount()
+        | ByGroupId groupId -> dataAccess.ChannelsGroups.GetGroupUnreadCount(groupId)
+        | ByChannelId channelId -> dataAccess.Channels.GetChannelUnreadCount(channelId)
+
     let main (id: ChannelId) =
         html.inject
             (fun
@@ -83,10 +91,11 @@ module ContentPage =
                     | ByGroupId groupId -> dataAccess.ChannelsGroups.GetById(groupId).Value.Name
                     | ByChannelId channelId -> dataAccess.Channels.Get(channelId).Value.Title
 
-                let count =
-                    match store.FeedItems.Value with
-                    | ChannelItems.LoadedFeedItemsList items -> items.Length
-                    | _ -> 0
+                // let count =
+                //     match store.FeedItems.Value with
+                //     | ChannelItems.LoadedFeedItemsList items -> items.Length
+                //     | _ -> 0
+                store.UnreadCount.Publish(getUnreadCount (id, dataAccess))
 
                 fragment {
                     FluentStack'' {
@@ -95,6 +104,7 @@ module ContentPage =
 
                         adapt {
                             let! leftPaneWidth, setLeftPaneWidth = store.LeftPaneWidth.WithSetter()
+                            let! unreadCount, setUnreadCount = store.UnreadCount.WithSetter()
                             let h4width = leftPaneWidth - 30
 
                             let cursorStyle =
@@ -137,7 +147,7 @@ module ContentPage =
                                                 linkOpeningService
                                             ))
 
-                                        $"{title}({count})"
+                                        $"{title}({unreadCount})"
                                     }
                                 }
 
@@ -183,6 +193,7 @@ module ContentPage =
                             let! feedItems, setFeedItems = store.FeedItems.WithSetter()
                             let! selectedItem, setSelectedItem = store.SelectedChannelItem.WithSetter()
                             let! leftPaneWidth, setLeftPaneWidth = store.LeftPaneWidth.WithSetter()
+                            let! currentChannelId, setCurrentChannelId = store.CurrentChannelId.WithSetter()
 
                             div {
                                 style' ("width: calc(100% - " + leftPaneWidth.ToString() + "px);overflow: hidden;")
@@ -201,6 +212,7 @@ module ContentPage =
                                         chItem.IsRead <- read
                                         dataAccess.ChannelItems.SetRead(chItem.Id, read)
                                         store.CurrentIsRead.Publish(read)
+                                        store.UnreadCount.Publish(getUnreadCount (currentChannelId, dataAccess))
                                         setSelectedItem (SelectedChannelItem.Selected chItem)
 
                                     setRead (selItem, true)
