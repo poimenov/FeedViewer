@@ -357,7 +357,7 @@ type IChannelItems =
     abstract member GetByRead: bool -> ChannelItem list
     abstract member GetByFavorite: bool -> ChannelItem list
     abstract member GetByDeleted: bool -> ChannelItem list
-    abstract member GetByCategory: int -> ChannelItem list
+    abstract member GetByCategoryId: int -> ChannelItem list
 
 type ChannelItems(connectionService: IConnectionService) =
     let selectSql (where: string) =
@@ -471,7 +471,7 @@ type ChannelItems(connectionService: IConnectionService) =
 
             cmd |> Db.exec
 
-        member this.GetByCategory(categoryId: int) =
+        member this.GetByCategoryId(categoryId: int) =
             use conn = connectionService.GetConnection()
 
             use cmd =
@@ -631,7 +631,8 @@ type ChannelItems(connectionService: IConnectionService) =
             cmd |> Db.exec
 
 type ICategories =
-    abstract member GetByChannelItem: int64 -> Category list
+    abstract member GetByChannelItemId: int64 -> Category list
+    abstract member GetByCategoryCount: int -> int
     abstract member GetByName: string -> Category list
     abstract member Get: int -> Category option
 
@@ -650,7 +651,7 @@ type Categories(connectionService: IConnectionService) =
 
             cmd |> Db.query (fun reader -> getCategory reader) |> Seq.tryHead
 
-        member this.GetByChannelItem(channelItemId: int64) =
+        member this.GetByChannelItemId(channelItemId: int64) =
             use conn = connectionService.GetConnection()
 
             use cmd =
@@ -674,6 +675,22 @@ type Categories(connectionService: IConnectionService) =
                 |> Db.setParams [ "Name", SqlType.String categoryName ]
 
             cmd |> Db.query (fun reader -> getCategory reader) |> Seq.toList
+
+        member this.GetByCategoryCount(categoryId: int) : int =
+            use conn = connectionService.GetConnection()
+
+            use cmd =
+                conn
+                |> Db.newCommand
+                    "SELECT COUNT(*)
+                    FROM ChannelItems CI
+                    INNER JOIN ItemCategories IC 
+                    ON CI.Id = IC.ChannelItemId
+                    WHERE IC.CategoryId = @CategoryId
+                    ORDER BY CI.PublishingDate DESC"
+                |> Db.setParams [ "CategoryId", SqlType.Int categoryId ]
+
+            cmd |> Db.scalar Convert.ToInt32
 
 type IDataAccess =
     abstract member Channels: IChannels

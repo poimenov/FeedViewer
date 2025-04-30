@@ -16,16 +16,16 @@
     <Compile Include="Navmenu.fs" />
     <Compile Include="ContentPage.fs" />
     <Compile Include="OrganizeFeeds.fs" />
-    <Compile Include="App.fs" />    
+    <Compile Include="App.fs" />
     <Compile Include="Program.fs" />
     <Content Update="log4net.config">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>    
+    </Content>
   </ItemGroup>
   <ItemGroup>
     <Content Update="wwwroot\**">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content> 
+    </Content>
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="CodeHollow.FeedReader" Version="1.2.6" />

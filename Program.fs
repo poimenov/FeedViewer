@@ -46,6 +46,7 @@ let main args =
     builder.Services.AddTransient<IHttpHandler, HttpHandler>() |> ignore
     builder.Services.AddTransient<IIconDownloader, IconDownloader>() |> ignore
     builder.Services.AddTransient<IChannelReader, ChannelReader>() |> ignore
+    builder.Services.AddTransient<IServices, Services>() |> ignore
 
     builder.Services.AddSingleton<IExportImportService, ExportImportService>()
     |> ignore

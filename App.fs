@@ -194,6 +194,7 @@ module App =
                routeCi "/channel/starred" (ContentPage.main Starred)
                routeCif "/channel/%i" (fun x -> ContentPage.main (ByChannelId x))
                routeCif "/group/%i" (fun x -> ContentPage.main (ByGroupId x))
+               routeCif "/category/%i" (fun x -> ContentPage.main (ByCategoryId x))
                routeCi "/feeds" OrganizeFeeds.main
                routeAny (ContentPage.main All) |]
 

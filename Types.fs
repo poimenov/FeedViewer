@@ -8,6 +8,7 @@ module Types =
     open Fun.Blazor
     open FeedViewer
     open System
+    open Microsoft.AspNetCore.Components.Routing
 
     type public OpenLinkProvider(los: ILinkOpeningService) =
         [<JSInvokable>]
@@ -19,6 +20,7 @@ module Types =
         | Starred
         | ByGroupId of int
         | ByChannelId of int
+        | ByCategoryId of int
 
     type SelectedChannelItem =
         | NotSelected
@@ -333,3 +335,43 @@ module Types =
                     .Add((fun x -> x.UnCheckedIcon), unCheckedIcon)
                     .Add((fun x -> x.OnValueChanged), EventCallback<bool>(null, Action<bool> onValueChanged))
             )
+
+    type CategoriesPanel() =
+        inherit FunComponent()
+
+        [<Parameter>]
+        member val Content = Unchecked.defaultof<list<Category>> with get, set
+
+        interface IDialogContentComponent<list<Category>> with
+            member this.Content = this.Content
+
+            member this.Content
+                with set (value) = this.Content <- value
+
+        [<CascadingParameter>]
+        member val Dialog = Unchecked.defaultof<FluentDialog> with get, set
+
+        override this.Render() : NodeRenderFragment =
+            adapt {
+                FluentDialogHeader'' {
+                    title' this.Dialog.Instance.Parameters.Title
+                    ShowDismiss true
+                }
+
+                FluentDialogBody'' {
+                    FluentNavMenu'' {
+                        Width 200
+
+                        this.Content
+                        |> List.map (fun c ->
+                            FluentNavLink'' {
+                                Href $"/category/{c.Id}"
+                                Match NavLinkMatch.Prefix
+                                Icon(Icons.Regular.Size20.Bookmark())
+                                Tooltip c.Name
+                                c.Name
+                            })
+
+                    }
+                }
+            }

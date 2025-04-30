@@ -11,6 +11,7 @@ open System.Threading.Tasks
 open Microsoft.Extensions.Logging
 open FSharp.Data
 open CodeHollow.FeedReader
+open Microsoft.FluentUI.AspNetCore.Components
 
 let public iconsDirectoryPath =
     let assemblyFolderPath =
@@ -537,3 +538,14 @@ type ChannelReader
                     |> Async.StartAsTask
                     |> Async.AwaitTask
             }
+
+type IServices =
+    abstract member ChannelReader: IChannelReader
+    abstract member LinkOpeningService: ILinkOpeningService
+    abstract member DialogService: IDialogService
+
+type Services(channelReader: IChannelReader, linkOpeningService: ILinkOpeningService, dialogService: IDialogService) =
+    interface IServices with
+        member this.ChannelReader = channelReader
+        member this.LinkOpeningService = linkOpeningService
+        member this.DialogService = dialogService
