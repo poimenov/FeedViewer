@@ -60,7 +60,8 @@ module Navmenu =
                                 | Starred -> navigation.NavigateTo("/channel/starred")
                                 | ByGroupId groupId -> navigation.NavigateTo($"/group/{groupId}")
                                 | ByChannelId channelId -> navigation.NavigateTo($"/channel/{channelId}")
-                                | ByCategoryId categoryId -> navigation.NavigateTo($"/category/{categoryId}")),
+                                | ByCategoryId categoryId -> navigation.NavigateTo($"/category/{categoryId}")
+                                | BySearchString txt -> navigation.NavigateTo($"/search/{txt}")),
                             (fun ex -> printfn "%A" ex),
                             (fun _ -> ())
                         )

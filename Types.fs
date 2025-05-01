@@ -21,6 +21,7 @@ module Types =
         | ByGroupId of int
         | ByChannelId of int
         | ByCategoryId of int
+        | BySearchString of string
 
     type SelectedChannelItem =
         | NotSelected
@@ -86,6 +87,8 @@ module Types =
             store.CreateCVal(nameof store.CurrentIsFavorite, false)
 
         member store.UnreadCount = store.CreateCVal(nameof store.UnreadCount, 0)
+        member store.SearchString = store.CreateCVal(nameof store.SearchString, "")
+        member store.SearchEnabled = store.CreateCVal(nameof store.SearchEnabled, false)
 
     type FeedGroupDialog() =
         inherit FunComponent()

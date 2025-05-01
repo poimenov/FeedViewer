@@ -24,6 +24,10 @@ module ContentPage =
             store.FeedItems.Publish(
                 ChannelItems.LoadedFeedItemsList(dataAccess.ChannelItems.GetByCategoryId(categoryId))
             )
+        | BySearchString searchString ->
+            store.FeedItems.Publish(
+                ChannelItems.LoadedFeedItemsList(dataAccess.ChannelItems.GetBySearchString(searchString))
+            )
 
     let update (id: ChannelId, reader: IChannelReader) =
         match id with
@@ -42,6 +46,7 @@ module ContentPage =
             |> Async.StartAsTask
             |> Async.AwaitTask
         | ByCategoryId categoryId -> async { return [||] }
+        | BySearchString searchString -> async { return [||] }
         | ReadLater -> async { return [||] }
         | Starred -> async { return [||] }
 
@@ -67,12 +72,19 @@ module ContentPage =
         | ByGroupId groupId -> dataAccess.ChannelsGroups.GetGroupUnreadCount(groupId)
         | ByChannelId channelId -> dataAccess.Channels.GetChannelUnreadCount(channelId)
         | ByCategoryId categoryId -> dataAccess.Categories.GetByCategoryCount(categoryId)
+        | BySearchString searchString -> dataAccess.Channels.GetSearchCount(searchString)
 
-    let main (id: ChannelId) =
+    let rec main (id: ChannelId) =
         html.inject (fun (store: IShareStore, dataAccess: IDataAccess, services: IServices, jsRuntime: IJSRuntime) ->
 
             store.CurrentChannelId.Publish(id)
             load (id, store, dataAccess)
+
+            match id with
+            | BySearchString searchString -> ()
+            | _ ->
+                store.SearchString.Publish("")
+                store.SearchEnabled.Publish(false)
 
             match store.FeedItems.Value with
             | ChannelItems.LoadedFeedItemsList items ->
@@ -91,6 +103,7 @@ module ContentPage =
                 | ByGroupId groupId -> dataAccess.ChannelsGroups.GetById(groupId).Value.Name
                 | ByChannelId channelId -> dataAccess.Channels.Get(channelId).Value.Title
                 | ByCategoryId categoryId -> dataAccess.Categories.Get(categoryId).Value.Name
+                | BySearchString _ -> "Search Results"
 
             store.UnreadCount.Publish(getUnreadCount (id, dataAccess))
 
@@ -102,6 +115,9 @@ module ContentPage =
                     adapt {
                         let! leftPaneWidth, setLeftPaneWidth = store.LeftPaneWidth.WithSetter()
                         let! unreadCount, setUnreadCount = store.UnreadCount.WithSetter()
+                        let! searchString, setSearchString = store.SearchString.WithSetter()
+                        let! synchronizeButtonDisabled, setSynchronizeButtonDisabled = cval(false).WithSetter()
+                        let! searchEnabled, setSearchEnabled = store.SearchEnabled.WithSetter()
                         let h4width = leftPaneWidth - 30
 
                         let cursorStyle =
@@ -117,9 +133,11 @@ module ContentPage =
                             | ByChannelId channelId -> dataAccess.Channels.Get(channelId) |> Navmenu.getChannelIcon20
                             | ByGroupId _ -> Icons.Regular.Size20.Folder()
                             | ByCategoryId _ -> Icons.Regular.Size20.Bookmark()
+                            | BySearchString _ -> Icons.Regular.Size20.Search()
 
-
-                        let! synchronizeButtonDisabled, setSynchronizeButtonDisabled = cval(false).WithSetter()
+                        let searchStringChanged (str: string) =
+                            setSearchString str
+                            setSearchEnabled (str.Trim().Length > 2 && str.Trim().Length < 36)
 
                         FluentStack'' {
                             Orientation Orientation.Vertical
@@ -150,9 +168,33 @@ module ContentPage =
 
                             FluentStack'' {
                                 Orientation Orientation.Horizontal
+                                HorizontalGap 2
+
+                                FluentTextField'' {
+                                    placeholder "Search"
+                                    style' "min-width: 150px;width: 100%;"
+                                    minlength 3
+                                    maxlength 35
+
+                                    onkeydown (fun e ->
+                                        if e.Key = "Enter" && searchEnabled then
+                                            services.Navigation.NavigateTo($"/search/{searchString}"))
+
+                                    Immediate true
+                                    Value searchString
+                                    ValueChanged(fun s -> searchStringChanged s)
+                                }
+
+                                FluentButton'' {
+                                    IconStart(Icons.Regular.Size20.Search())
+                                    disabled (not searchEnabled)
+                                    Title "Search"
+                                    OnClick(fun _ -> services.Navigation.NavigateTo($"/search/{searchString}"))
+                                }
 
                                 FluentButton'' {
                                     IconStart(Icons.Regular.Size20.CheckmarkCircle())
+                                    Title "Mark All Read"
 
                                     OnClick(fun _ ->
                                         match store.CurrentChannelId.Value with
@@ -163,12 +205,11 @@ module ContentPage =
                                         | _ -> ()
 
                                         load (store.CurrentChannelId.Value, store, dataAccess))
-
-                                    "Mark All Read"
                                 }
 
                                 FluentButton'' {
                                     IconStart(Icons.Regular.Size20.ArrowSyncCircle())
+                                    Title "Synchronize"
                                     disabled synchronizeButtonDisabled
 
                                     OnClick(fun _ ->
@@ -178,8 +219,6 @@ module ContentPage =
                                             load (store.CurrentChannelId.Value, store, dataAccess)
                                             setSynchronizeButtonDisabled false
                                         })
-
-                                    "Synchronize"
                                 }
                             }
                         }

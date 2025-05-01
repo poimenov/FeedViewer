@@ -177,6 +177,7 @@ type IChannels =
     abstract member GetAllUnreadCount: unit -> int
     abstract member GetStarredCount: unit -> int
     abstract member GetReadLaterCount: unit -> int
+    abstract member GetSearchCount: string -> int
 
 type Channels(connectionService: IConnectionService) =
     [<Literal>]
@@ -341,6 +342,19 @@ type Channels(connectionService: IConnectionService) =
 
             cmd |> Db.exec
 
+        member this.GetSearchCount(searchString: string) : int =
+            let txt = searchString.Replace("%", " ").Replace("_", " ").Trim()
+            use conn = connectionService.GetConnection()
+
+            use cmd =
+                conn
+                |> Db.newCommand (
+                    "SELECT COUNT(*) FROM ChannelItems WHERE Title LIKE @txt OR Content LIKE @txt OR Description LIKE @txt"
+                )
+                |> Db.setParams [ "txt", SqlType.String $"%%{txt}%%" ]
+
+            cmd |> Db.scalar Convert.ToInt32
+
 type IChannelItems =
     abstract member Create: ChannelItem -> int64
     abstract member Delete: unit -> unit
@@ -358,6 +372,7 @@ type IChannelItems =
     abstract member GetByFavorite: bool -> ChannelItem list
     abstract member GetByDeleted: bool -> ChannelItem list
     abstract member GetByCategoryId: int -> ChannelItem list
+    abstract member GetBySearchString: string -> ChannelItem list
 
 type ChannelItems(connectionService: IConnectionService) =
     let selectSql (where: string) =
@@ -629,6 +644,17 @@ type ChannelItems(connectionService: IConnectionService) =
                 |> Db.setParams [ "Id", SqlType.Int64 id; "IsReadLater", SqlType.Boolean isReadLater ]
 
             cmd |> Db.exec
+
+        member this.GetBySearchString(searchString: string) : ChannelItem list =
+            let txt = searchString.Replace("%", " ").Replace("_", " ").Trim()
+            use conn = connectionService.GetConnection()
+
+            use cmd =
+                conn
+                |> Db.newCommand (selectSql "Title LIKE @txt OR Content LIKE @txt OR Description LIKE @txt")
+                |> Db.setParams [ "txt", SqlType.String $"%%{txt}%%" ]
+
+            cmd |> Db.query (fun reader -> getChannelItem reader) |> Seq.toList
 
 type ICategories =
     abstract member GetByChannelItemId: int64 -> Category list

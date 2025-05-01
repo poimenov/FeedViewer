@@ -12,6 +12,7 @@ open Microsoft.Extensions.Logging
 open FSharp.Data
 open CodeHollow.FeedReader
 open Microsoft.FluentUI.AspNetCore.Components
+open Microsoft.AspNetCore.Components
 
 let public iconsDirectoryPath =
     let assemblyFolderPath =
@@ -543,9 +544,17 @@ type IServices =
     abstract member ChannelReader: IChannelReader
     abstract member LinkOpeningService: ILinkOpeningService
     abstract member DialogService: IDialogService
+    abstract member Navigation: NavigationManager
 
-type Services(channelReader: IChannelReader, linkOpeningService: ILinkOpeningService, dialogService: IDialogService) =
+type Services
+    (
+        channelReader: IChannelReader,
+        linkOpeningService: ILinkOpeningService,
+        dialogService: IDialogService,
+        navigation: NavigationManager
+    ) =
     interface IServices with
         member this.ChannelReader = channelReader
         member this.LinkOpeningService = linkOpeningService
         member this.DialogService = dialogService
+        member this.Navigation: NavigationManager = navigation
