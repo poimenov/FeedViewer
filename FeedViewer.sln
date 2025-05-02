@@ -3,7 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "FeedViewer", "FeedViewer.fsproj", "{2ED30140-7654-4B11-8AC9-7BC4CD0C0CCE}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{AADE1C2E-80F1-45BB-A1FD-373853202AB1}"
+EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "FeedViewer", "src\FeedViewer\FeedViewer.fsproj", "{2ED30140-7654-4B11-8AC9-7BC4CD0C0CCE}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -19,4 +21,7 @@ Global
 		{2ED30140-7654-4B11-8AC9-7BC4CD0C0CCE}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{2ED30140-7654-4B11-8AC9-7BC4CD0C0CCE}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{2ED30140-7654-4B11-8AC9-7BC4CD0C0CCE} = {AADE1C2E-80F1-45BB-A1FD-373853202AB1}
+	EndGlobalSection	
 EndGlobal
