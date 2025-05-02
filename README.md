@@ -4,7 +4,7 @@
 
 ## Description
 
-FeedViewer is a lightweight RSS/Atom feed reader built using [Photino](https://www.tryphotino.io/) and [Fun.Blazor](https://slaveoftime.github.io/Fun.Blazor.Docs/). It allows you to subscribe to and read news feeds in a fast, clean, and user-friendly desktop application for Windows, macOS and Linux.
+FeedViewer is a lightweight RSS/Atom feed reader built using [Photino](https://www.tryphotino.io/), [ Fluent UI Blazor](https://www.fluentui-blazor.net/) and [Fun.Blazor](https://slaveoftime.github.io/Fun.Blazor.Docs/). It allows you to subscribe to and read news feeds in a fast, clean, and user-friendly desktop application for Windows, macOS and Linux.
 
 ## Features
 - 📡 Subscribe to RSS/Atom Feeds
