@@ -21,7 +21,6 @@ module Navmenu =
             else
                 "icons/rss-button-orange.32.png"
 
-
     let getIcon (src: String, size: IconSize) =
         Icon(String.Empty, IconVariant.Regular, size, $"<img src=\"{src}\"  style=\"width: 100%%;\" />")
 

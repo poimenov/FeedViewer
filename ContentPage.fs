@@ -506,6 +506,7 @@ module ContentPage =
 
                                             div {
                                                 class' "channel-item-title"
+                                                title' item.Title
                                                 item.Title
                                             }
 

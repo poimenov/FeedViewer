@@ -17,15 +17,15 @@ module App =
                 (store: IShareStore,
                  openService: IOpenDialogService,
                  exportImport: IExportImportService,
-                 navigation: NavigationManager,
-                 channelReader: IChannelReader) ->
+                 services: IServices) ->
                 FluentHeader'' {
                     FluentStack'' {
                         Orientation Orientation.Horizontal
+                        HorizontalGap 2
 
                         img {
                             src "favicon.ico"
-                            style { height "28px" }
+                            style { height "40px" }
                         }
 
                         FluentLabel'' {
@@ -35,6 +35,15 @@ module App =
                         }
 
                         FluentSpacer''
+
+                        FluentButton'' {
+                            Appearance Appearance.Accent
+                            IconStart(Github())
+                            title' "FeedViewer source on GitHub"
+
+                            OnClick(fun _ ->
+                                services.LinkOpeningService.OpenUrl "https://github.com/poimenov/FeedViewer")
+                        }
 
                         adapt {
                             let! isOpen = store.IsSettingsOpen.WithSetter()
@@ -52,6 +61,7 @@ module App =
                                 Id "SettingsMenuButton"
                                 Appearance Appearance.Accent
                                 IconStart(Icons.Regular.Size20.Settings())
+                                title' "Settings"
                                 OnClick(fun _ -> store.IsSettingsOpen.Publish(not))
                             }
 
@@ -94,13 +104,13 @@ module App =
                                             file.First() |> exportImport.Import
 
                                         Async.StartWithContinuations(
-                                            channelReader.ReadAllChannelsAsync(),
+                                            services.ChannelReader.ReadAllChannelsAsync(),
                                             (fun _ ->
                                                 //refresh navmenu
                                                 store.IsMenuOpen.Publish(false)
                                                 store.IsMenuOpen.Publish(true)
                                                 //navigate to all channels
-                                                navigation.NavigateTo("/channel/all")),
+                                                services.Navigation.NavigateTo("/channel/all")),
                                             (fun ex -> printfn "%A" ex),
                                             (fun _ -> ())
                                         ))
@@ -144,7 +154,7 @@ module App =
                                 }
 
                                 FluentMenuItem'' {
-                                    OnClick(fun _ -> navigation.NavigateTo("/feeds"))
+                                    OnClick(fun _ -> services.Navigation.NavigateTo("/feeds"))
                                     "Organize Feeds"
 
                                     span {
