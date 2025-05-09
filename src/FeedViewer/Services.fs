@@ -14,12 +14,6 @@ open CodeHollow.FeedReader
 open Microsoft.FluentUI.AspNetCore.Components
 open Microsoft.AspNetCore.Components
 
-let public iconsDirectoryPath =
-    let assemblyFolderPath =
-        System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location)
-
-    Path.Combine(Path.Combine(assemblyFolderPath, "wwwroot"), "icons")
-
 type Platform =
     | Windows
     | Linux
@@ -515,7 +509,7 @@ type ChannelReader
         member this.ReadAllChannelsAsync() : Async<Channel array> =
             async {
                 let readChannel (id: int) =
-                    (this :> IChannelReader).ReadChannelAsync(id, iconsDirectoryPath)
+                    (this :> IChannelReader).ReadChannelAsync(id, AppSettings.IconsDirectoryPath)
 
                 return!
                     channels.GetAll()

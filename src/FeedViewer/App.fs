@@ -3,19 +3,21 @@ namespace FeedViewer.Application
 module App =
     open System.IO
     open System.Linq
-    open Microsoft.AspNetCore.Components
     open Microsoft.AspNetCore.Components.Web
+    open Microsoft.Extensions.Options
     open Microsoft.FluentUI.AspNetCore.Components
     open Microsoft.JSInterop
     open Fun.Blazor
     open Fun.Blazor.Router
     open FeedViewer.Services
+    open FeedViewer
 
     let appHeader =
         html.inject
             (fun
                 (store: IShareStore,
                  openService: IOpenDialogService,
+                 options: IOptions<AppSettings>,
                  exportImport: IExportImportService,
                  services: IServices) ->
                 FluentHeader'' {
@@ -24,7 +26,7 @@ module App =
                         HorizontalGap 2
 
                         img {
-                            src "favicon.ico"
+                            src AppSettings.FavIconFileName
                             style { height "40px" }
                         }
 
@@ -51,6 +53,7 @@ module App =
                             FluentDesignTheme'' {
                                 StorageName "theme"
                                 Mode store.Theme.Value
+                                OfficeColor options.Value.AccentColor
 
                                 OnLoaded(fun args ->
                                     if args.IsDark then

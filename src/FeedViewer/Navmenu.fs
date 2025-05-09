@@ -14,7 +14,7 @@ module Navmenu =
         | None -> "icons/rss-button-orange.32.png"
         | Some channel ->
             let host = Uri(channel.Url).Host
-            let files = Directory.GetFiles(iconsDirectoryPath, $"{host}.*")
+            let files = Directory.GetFiles(AppSettings.IconsDirectoryPath, $"{host}.*")
 
             if files.Length > 0 then
                 $"icons/{Path.GetFileName(files.[0])}"

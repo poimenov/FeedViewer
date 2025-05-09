@@ -2,39 +2,19 @@
 module FeedViewer.DataAccess
 
 open System
+open System.Data
+open System.Diagnostics
 open System.IO
 open Microsoft.Data.Sqlite
-open System.Reflection
-open System.Data
+open Microsoft.Extensions.Logging
 open Donald
+open FeedViewer.AppSettings
 open FeedViewer.Models
-open System.Diagnostics
-
-[<Literal>]
-let ApplicationName = "FeedViewer"
-
-[<Literal>]
-let private DataBaseFileName = "FeedViewer.db"
 
 let getNullableString (value: string option) =
     match value with
     | Some value -> SqlType.String value
     | None -> SqlType.Null
-
-let private CreateDatabaseScript =
-    use stream =
-        new StreamReader(
-            Assembly
-                .GetExecutingAssembly()
-                .GetManifestResourceStream("FeedViewer.CreateDatabase.sql")
-        )
-
-    stream.ReadToEnd()
-
-let AppDataPath =
-    Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), ApplicationName)
-
-let private DataBasePath = Path.Combine(AppDataPath, DataBaseFileName)
 
 type IConnectionService =
     abstract member GetConnection: unit -> IDbConnection
@@ -42,26 +22,27 @@ type IConnectionService =
 type ConnectionService() =
     interface IConnectionService with
         member this.GetConnection() =
-            new SqliteConnection($"Data Source={DataBasePath}") :> IDbConnection
+            new SqliteConnection($"Data Source={AppSettings.DataBasePath}") :> IDbConnection
 
 type IDataBase =
     abstract member CreateDatabaseIfNotExists: unit -> unit
 
-type DataBase(connectionService: IConnectionService) =
+type DataBase(connectionService: IConnectionService, logger: ILogger<DataBase>) =
     interface IDataBase with
         member this.CreateDatabaseIfNotExists() =
-            if not (Directory.Exists(AppDataPath)) then
-                Directory.CreateDirectory(AppDataPath) |> ignore
+            if not (Directory.Exists(AppSettings.AppDataPath)) then
+                Directory.CreateDirectory(AppSettings.AppDataPath) |> ignore
 
-            if not (File.Exists(DataBasePath)) then
+            if not (File.Exists(AppSettings.DataBasePath)) then
                 use conn = connectionService.GetConnection()
                 use tran = conn.TryBeginTransaction()
 
                 try
-                    tran |> Db.newCommandForTransaction CreateDatabaseScript |> Db.exec
+                    tran |> Db.newCommandForTransaction AppSettings.CreateDatabaseScript |> Db.exec
                     tran.TryCommit()
                 with ex ->
                     Debug.WriteLine(ex)
+                    logger.LogError(ex, "Error creating database")
                     tran.TryRollback()
 
 type IChannelGroups =
@@ -646,15 +627,18 @@ type ChannelItems(connectionService: IConnectionService) =
             cmd |> Db.exec
 
         member this.GetBySearchString(searchString: string) : ChannelItem list =
-            let txt = searchString.Replace("%", " ").Replace("_", " ").Trim()
-            use conn = connectionService.GetConnection()
+            if searchString.Length < 3 || searchString.Length > 35 then
+                []
+            else
+                let txt = searchString.Replace("%", " ").Replace("_", " ").Trim()
+                use conn = connectionService.GetConnection()
 
-            use cmd =
-                conn
-                |> Db.newCommand (selectSql "Title LIKE @txt OR Content LIKE @txt OR Description LIKE @txt")
-                |> Db.setParams [ "txt", SqlType.String $"%%{txt}%%" ]
+                use cmd =
+                    conn
+                    |> Db.newCommand (selectSql "Title LIKE @txt OR Content LIKE @txt OR Description LIKE @txt")
+                    |> Db.setParams [ "txt", SqlType.String $"%%{txt}%%" ]
 
-            cmd |> Db.query (fun reader -> getChannelItem reader) |> Seq.toList
+                cmd |> Db.query (fun reader -> getChannelItem reader) |> Seq.toList
 
 type ICategories =
     abstract member GetByChannelItemId: int64 -> Category list

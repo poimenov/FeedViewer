@@ -241,7 +241,7 @@ module OrganizeFeeds =
                                                     )
 
                                                 let! channel =
-                                                    reader.ReadChannelAsync(channelId, iconsDirectoryPath)
+                                                    reader.ReadChannelAsync(channelId, AppSettings.IconsDirectoryPath)
                                                     |> Async.StartAsTask
                                                     |> Async.AwaitTask
 

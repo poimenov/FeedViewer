@@ -5,7 +5,7 @@
     <NoDefaultLaunchSettingsFile>True</NoDefaultLaunchSettingsFile>
     <ApplicationIcon>wwwroot/favicon.ico</ApplicationIcon>
   </PropertyGroup>
-  <ItemGroup>
+  <ItemGroup><Compile Include="AppSettings.fs" />
     <Compile Include="FeedExtensions.fs" />
     <Compile Include="Models.fs" />
     <EmbeddedResource Include="CreateDatabase.sql" />
@@ -21,6 +21,9 @@
     <Content Update="log4net.config">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <Content Update="appsettings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>    
   </ItemGroup>
   <ItemGroup>
     <Content Update="wwwroot\**">

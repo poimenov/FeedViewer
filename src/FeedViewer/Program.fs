@@ -2,26 +2,29 @@ module Program
 
 open System
 open System.IO
-open System.Reflection
+open Microsoft.Extensions.Configuration
 open Microsoft.Extensions.DependencyInjection
 open Microsoft.Extensions.Logging
+open Microsoft.Extensions.Options
 open Microsoft.FluentUI.AspNetCore.Components
 open log4net.Config
 open Photino.Blazor
 open FeedViewer.Application
 open FeedViewer.Services
 open FeedViewer.DataAccess
+open FeedViewer.AppSettings
+
 
 [<EntryPoint>]
 let main args =
     let DATA_DIRECTORY = "DATA_DIRECTORY"
     let builder = PhotinoBlazorAppBuilder.CreateDefault(args)
 
-    let logConfigPath =
-        let assemblyFolderPath =
-            Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)
-
-        Path.Combine(assemblyFolderPath, "log4net.config")
+    let configuration =
+        ConfigurationBuilder()
+            .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+            .AddJsonFile(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, AppSettings.AppConfigFileName), true, true)
+            .Build()
 
     builder.Services.AddFunBlazorWasm() |> ignore
     builder.Services.AddFluentUIComponents() |> ignore
@@ -29,6 +32,8 @@ let main args =
     builder.Services.AddLogging(fun logging -> logging.ClearProviders().AddLog4Net() |> ignore<ILoggingBuilder>)
     |> ignore
 
+    builder.Services.AddSingleton<IConfiguration>(configuration) |> ignore
+    builder.Services.Configure<AppSettings>(configuration) |> ignore
     builder.Services.AddSingleton<IPlatformService, PlatformService>() |> ignore
     builder.Services.AddSingleton<IProcessService, ProcessService>() |> ignore
 
@@ -56,18 +61,20 @@ let main args =
     application.Services.GetRequiredService<IDataBase>().CreateDatabaseIfNotExists()
 
     application.RootComponents.AddFunBlazor("#app", App.main) |> ignore
-    AppDomain.CurrentDomain.SetData("DataDirectory", AppDataPath)
-    Environment.SetEnvironmentVariable(DATA_DIRECTORY, AppDataPath)
-    FileInfo logConfigPath |> XmlConfigurator.Configure |> ignore
+    AppDomain.CurrentDomain.SetData("DataDirectory", AppSettings.AppDataPath)
+    Environment.SetEnvironmentVariable(DATA_DIRECTORY, AppSettings.AppDataPath)
+    FileInfo AppSettings.LogConfigPath |> XmlConfigurator.Configure |> ignore
 
     let logger = application.Services.GetRequiredService<ILogger<_>>()
     logger.LogInformation("Starting application")
+    let settings = application.Services.GetRequiredService<IOptions<AppSettings>>()
 
     // customize window
     application.MainWindow
-        .SetSize(1024, 768)
-        .SetIconFile(Path.Combine("wwwroot", "favicon.ico"))
-        .SetTitle("FeedViewer")
+        //.SetSize(windowWidth, windowHeight)
+        .SetSize(settings.Value.WindowWidth, settings.Value.WindowHeight)
+        .SetIconFile(Path.Combine(AppSettings.WwwRootFolderName, AppSettings.FavIconFileName))
+        .SetTitle(AppSettings.ApplicationName)
         .RegisterWindowClosingHandler(fun _ _ ->
             application.Services.GetRequiredService<IChannelItems>().Delete()
             false)

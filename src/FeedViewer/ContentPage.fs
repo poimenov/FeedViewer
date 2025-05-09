@@ -33,12 +33,12 @@ module ContentPage =
         match id with
         | All -> reader.ReadAllChannelsAsync() |> Async.StartAsTask |> Async.AwaitTask
         | ByGroupId groupId ->
-            reader.ReadGroupAsync(groupId, iconsDirectoryPath)
+            reader.ReadGroupAsync(groupId, AppSettings.IconsDirectoryPath)
             |> Async.StartAsTask
             |> Async.AwaitTask
         | ByChannelId channelId ->
             let readChannel (id: int) =
-                reader.ReadChannelAsync(id, iconsDirectoryPath)
+                reader.ReadChannelAsync(id, AppSettings.IconsDirectoryPath)
 
             [ channelId ]
             |> List.map readChannel
