@@ -271,6 +271,7 @@ module ContentPage =
                                     | Some channel ->
                                         span {
                                             class' "channel-name"
+                                            style' "width: 100%;"
 
                                             FluentAnchor'' {
                                                 Appearance Appearance.Hypertext
@@ -296,7 +297,9 @@ module ContentPage =
                                     match selItem.PublishingDate with
                                     | Some date ->
                                         span {
-                                            style' "font-style: italic;font-size: 12px;white-space: nowrap;"
+                                            style'
+                                                "font-style: italic;font-size: 12px;white-space: nowrap;margin-right: 40px;"
+
                                             date.ToLongDateString()
                                         }
                                     | None -> ""
