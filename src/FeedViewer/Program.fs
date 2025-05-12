@@ -1,6 +1,7 @@
 module Program
 
 open System
+open System.Globalization
 open System.IO
 open Microsoft.Extensions.Configuration
 open Microsoft.Extensions.DependencyInjection
@@ -13,7 +14,6 @@ open FeedViewer.Application
 open FeedViewer.Services
 open FeedViewer.DataAccess
 open FeedViewer.AppSettings
-
 
 [<EntryPoint>]
 let main args =
@@ -30,6 +30,9 @@ let main args =
     builder.Services.AddFluentUIComponents() |> ignore
 
     builder.Services.AddLogging(fun logging -> logging.ClearProviders().AddLog4Net() |> ignore<ILoggingBuilder>)
+    |> ignore
+
+    builder.Services.AddLocalization(fun options -> options.ResourcesPath <- "Resources")
     |> ignore
 
     builder.Services.AddSingleton<IConfiguration>(configuration) |> ignore
@@ -68,10 +71,11 @@ let main args =
     let logger = application.Services.GetRequiredService<ILogger<_>>()
     logger.LogInformation("Starting application")
     let settings = application.Services.GetRequiredService<IOptions<AppSettings>>()
+    CultureInfo.DefaultThreadCurrentCulture <- CultureInfo.GetCultureInfo(settings.Value.CultureName)
+    CultureInfo.DefaultThreadCurrentUICulture <- CultureInfo.GetCultureInfo(settings.Value.CultureName)
 
     // customize window
     application.MainWindow
-        //.SetSize(windowWidth, windowHeight)
         .SetSize(settings.Value.WindowWidth, settings.Value.WindowHeight)
         .SetIconFile(Path.Combine(AppSettings.WwwRootFolderName, AppSettings.FavIconFileName))
         .SetTitle(AppSettings.ApplicationName)

@@ -3,7 +3,6 @@ namespace FeedViewer.Application
 module Navmenu =
     open System
     open System.IO
-    open Microsoft.AspNetCore.Components
     open Microsoft.AspNetCore.Components.Routing
     open Microsoft.FluentUI.AspNetCore.Components
     open Fun.Blazor
@@ -42,30 +41,24 @@ module Navmenu =
 
     let main =
         html.injectWithNoKey
-            (fun
-                (store: IShareStore,
-                 hook: IComponentHook,
-                 navigation: NavigationManager,
-                 dataAccess: IDataAccess,
-                 channelReader: IChannelReader) ->
+            (fun (store: IShareStore, hook: IComponentHook, dataAccess: IDataAccess, services: IServices) ->
                 hook.AddInitializedTask(fun () ->
                     task {
                         Async.StartWithContinuations(
-                            channelReader.ReadAllChannelsAsync(),
+                            services.ChannelReader.ReadAllChannelsAsync(),
                             (fun _ ->
                                 match store.CurrentChannelId.Value with
-                                | All -> navigation.NavigateTo("/channel/all")
-                                | ReadLater -> navigation.NavigateTo("/channel/readlater")
-                                | Starred -> navigation.NavigateTo("/channel/starred")
-                                | ByGroupId groupId -> navigation.NavigateTo($"/group/{groupId}")
-                                | ByChannelId channelId -> navigation.NavigateTo($"/channel/{channelId}")
-                                | ByCategoryId categoryId -> navigation.NavigateTo($"/category/{categoryId}")
-                                | BySearchString txt -> navigation.NavigateTo($"/search/{txt}")),
+                                | All -> services.Navigation.NavigateTo("/channel/all")
+                                | ReadLater -> services.Navigation.NavigateTo("/channel/readlater")
+                                | Starred -> services.Navigation.NavigateTo("/channel/starred")
+                                | ByGroupId groupId -> services.Navigation.NavigateTo($"/group/{groupId}")
+                                | ByChannelId channelId -> services.Navigation.NavigateTo($"/channel/{channelId}")
+                                | ByCategoryId categoryId ->
+                                    services.Navigation.NavigateTo($"/category/{categoryId}")
+                                | BySearchString txt -> services.Navigation.NavigateTo($"/search/{txt}")),
                             (fun ex -> printfn "%A" ex),
                             (fun _ -> ())
                         )
-
-                    //printfn "navmenus"
                     })
 
                 adaptiview () {
@@ -97,21 +90,21 @@ module Navmenu =
                                 Href "/channel/all"
                                 Match NavLinkMatch.All
                                 Icon(Icons.Regular.Size20.Document())
-                                "All"
+                                string (services.Localizer["All"])
                             }
 
                             FluentNavLink'' {
                                 Href "/channel/starred"
                                 Match NavLinkMatch.Prefix
                                 Icon(Icons.Regular.Size20.Star())
-                                "Starred"
+                                string (services.Localizer["Favorites"])
                             }
 
                             FluentNavLink'' {
                                 Href "/channel/readlater"
                                 Match NavLinkMatch.Prefix
                                 Icon(Icons.Regular.Size20.Flag())
-                                "Read Later"
+                                string (services.Localizer["ReadLater"])
                             }
 
                             yield!

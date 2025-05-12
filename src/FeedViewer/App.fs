@@ -33,7 +33,7 @@ module App =
                         FluentLabel'' {
                             Typo Typography.H2
                             Color Color.Fill
-                            "FeedViewer"
+                            AppSettings.ApplicationName
                         }
 
                         FluentSpacer''
@@ -41,7 +41,7 @@ module App =
                         FluentButton'' {
                             Appearance Appearance.Accent
                             IconStart(Github())
-                            title' "FeedViewer source on GitHub"
+                            title' (string (services.Localizer["GitHub"]))
 
                             OnClick(fun _ ->
                                 services.LinkOpeningService.OpenUrl "https://github.com/poimenov/FeedViewer")
@@ -64,7 +64,7 @@ module App =
                                 Id "SettingsMenuButton"
                                 Appearance Appearance.Accent
                                 IconStart(Icons.Regular.Size20.Settings())
-                                title' "Settings"
+                                title' (string (services.Localizer["Settings"]))
                                 OnClick(fun _ -> store.IsSettingsOpen.Publish(not))
                             }
 
@@ -81,7 +81,7 @@ module App =
                                         if folder.Any() then
                                             Path.Combine(folder.First(), "FeedViewer.opml") |> exportImport.Export)
 
-                                    "Export"
+                                    string (services.Localizer["Export"])
 
                                     span {
                                         slot' "start"
@@ -98,7 +98,7 @@ module App =
                                     OnClick(fun _ ->
                                         let file =
                                             openService.OpenFile(
-                                                title = "Select opml file",
+                                                title = string (services.Localizer["SelectOpmlFile"]),
                                                 multiSelect = false,
                                                 filters = [| ("Opml file", [| "opml" |]) |]
                                             )
@@ -118,7 +118,7 @@ module App =
                                             (fun _ -> ())
                                         ))
 
-                                    "Import"
+                                    string (services.Localizer["Import"])
 
                                     span {
                                         slot' "start"
@@ -141,9 +141,9 @@ module App =
                                         ))
 
                                     if store.Theme.Value = DesignThemeModes.Dark then
-                                        "Switch to Light Mode"
+                                        string (services.Localizer["SwitchToLightMode"])
                                     else
-                                        "Switch to Dark Mode"
+                                        string (services.Localizer["SwitchToDarkMode"])
 
                                     span {
                                         slot' "start"
@@ -158,7 +158,7 @@ module App =
 
                                 FluentMenuItem'' {
                                     OnClick(fun _ -> services.Navigation.NavigateTo("/feeds"))
-                                    "Organize Feeds"
+                                    string (services.Localizer["OrganizeFeeds"])
 
                                     span {
                                         slot' "start"

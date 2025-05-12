@@ -6,6 +6,8 @@ open System.Runtime.CompilerServices
 open System.Text.RegularExpressions
 open System.Web
 
+type SharedResources() = class end
+
 type Category(id: int, name: string) =
     member val Id = id with get, set
     member val Name = name with get, set

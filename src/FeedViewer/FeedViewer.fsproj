@@ -5,7 +5,8 @@
     <NoDefaultLaunchSettingsFile>True</NoDefaultLaunchSettingsFile>
     <ApplicationIcon>wwwroot/favicon.ico</ApplicationIcon>
   </PropertyGroup>
-  <ItemGroup><Compile Include="AppSettings.fs" />
+  <ItemGroup>
+    <Compile Include="AppSettings.fs" />
     <Compile Include="FeedExtensions.fs" />
     <Compile Include="Models.fs" />
     <EmbeddedResource Include="CreateDatabase.sql" />
@@ -23,7 +24,7 @@
     </Content>
     <Content Update="appsettings.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>    
+    </Content>
   </ItemGroup>
   <ItemGroup>
     <Content Update="wwwroot\**">
@@ -36,6 +37,7 @@
     <PackageReference Include="FSharp.Data" Version="6.4.1" />
     <PackageReference Include="log4net" Version="3.0.4" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="9.0.2" />
+    <PackageReference Include="Microsoft.Extensions.Localization" Version="8.0.*" />
     <PackageReference Include="Microsoft.Extensions.Logging.Log4Net.AspNetCore" Version="8.0.0" />
     <PackageReference Include="Photino.Blazor" Version="3.2.0" />
     <PackageReference Include="Fun.Blazor.Wasm" Version="4.1.*" />

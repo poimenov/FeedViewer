@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+    <data name="All" xml:space="preserve">
+        <value>All</value>
+    </data>
+    <data name="ReadLater" xml:space="preserve">
+        <value>Read Later</value>
+    </data>  
+    <data name="Favorites" xml:space="preserve">
+        <value>Favorites</value>
+    </data>  
+    <data name="SearchResults" xml:space="preserve">
+        <value>Search Results</value>
+    </data>                  
+    <data name="Search" xml:space="preserve">
+        <value>Search</value>
+    </data> 
+    <data name="MarkAllRead" xml:space="preserve">
+        <value>Mark All Read</value>
+    </data> 
+    <data name="Synchronize" xml:space="preserve">
+        <value>Synchronize</value>
+    </data>  
+    <data name="SetAsRead" xml:space="preserve">
+        <value>Set As Read</value>
+    </data>
+    <data name="SetReadLater" xml:space="preserve">
+        <value>Set Read Later</value>
+    </data> 
+    <data name="SetFavorite" xml:space="preserve">
+        <value>Set Favorite</value>
+    </data>     
+    <data name="Delete" xml:space="preserve">
+        <value>Delete</value>
+    </data>       
+    <data name="Categories" xml:space="preserve">
+        <value>Categories</value>
+    </data> 
+    <data name="NoItems" xml:space="preserve">
+        <value>No Items</value>
+    </data> 
+    <data name="GitHub" xml:space="preserve">
+        <value>FeedViewer Source On GitHub</value>
+    </data>
+    <data name="Settings" xml:space="preserve">
+        <value>Settings</value>
+    </data>
+    <data name="Export" xml:space="preserve">
+        <value>Export</value>
+    </data>
+    <data name="SelectOpmlFile" xml:space="preserve">
+        <value>Select Opml File</value>
+    </data>            
+    <data name="Import" xml:space="preserve">
+        <value>Import</value>
+    </data> 
+    <data name="SwitchToLightMode" xml:space="preserve">
+        <value>Switch To Light Mode</value>
+    </data> 
+    <data name="SwitchToDarkMode" xml:space="preserve">
+        <value>Switch To Dark Mode</value>
+    </data> 
+    <data name="OrganizeFeeds" xml:space="preserve">
+        <value>Organize Feeds</value>
+    </data>      
+    <data name="Folders" xml:space="preserve">
+        <value>Folders</value>
+    </data>
+    <data name="AddNewFolder" xml:space="preserve">
+        <value>Add New Folder</value>
+    </data>
+    <data name="AddFolder" xml:space="preserve">
+        <value>Add Folder</value>
+    </data>
+    <data name="EditCurrentFolder" xml:space="preserve">
+        <value>Edit Current Folder</value>
+    </data>
+    <data name="EditFolder" xml:space="preserve">
+        <value>Edit Folder</value>
+    </data>
+    <data name="RemoveCurrentFolder" xml:space="preserve">
+        <value>Remove Current Folder</value>
+    </data>
+    <data name="RemoveCurrentFeed" xml:space="preserve">
+        <value>Remove Current Feed</value>
+    </data>   
+    <data name="RemoveFolder" xml:space="preserve">
+        <value>Remove Folder</value>
+    </data>
+    <data name="AddFeedToCurrentFolder" xml:space="preserve">
+        <value>Add Feed To Current Folder</value>
+    </data>                        
+    <data name="AddFeed" xml:space="preserve">
+        <value>Add Feed</value>
+    </data> 
+    <data name="OpenSiteInBrowser" xml:space="preserve">
+        <value>Open Site In Browser</value>
+    </data> 
+    <data name="EditFeedChannel" xml:space="preserve">
+        <value>Edit Feed Channel</value>
+    </data> 
+    <data name="Edit" xml:space="preserve">
+        <value>Edit</value>
+    </data>     
+    <data name="Cancel" xml:space="preserve">
+        <value>Cancel</value>
+    </data> 
+    <data name="AreYouSure" xml:space="preserve">
+        <value>Are You Sure?</value>
+    </data>                     
+    <data name="WillBeRemoved" xml:space="preserve">
+        <value>Will Be Removed</value>
+    </data>      
+    <data name="Folder" xml:space="preserve">
+        <value>Folder</value>
+    </data>      
+    <data name="Feed" xml:space="preserve">
+        <value>Feed</value>
+    </data>  
+    <data name="NoFeeds" xml:space="preserve">
+        <value>No Feeds To Show</value>
+    </data>     
+    <data name="Save" xml:space="preserve">
+        <value>Save</value>
+    </data>      
+    <data name="Title" xml:space="preserve">
+        <value>Title</value>
+    </data>   
+    <data name="FolderName" xml:space="preserve">
+        <value>Folder Name</value>
+    </data>                     
+</root>

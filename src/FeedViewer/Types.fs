@@ -3,12 +3,13 @@ namespace FeedViewer.Application
 [<AutoOpen>]
 module Types =
     open Microsoft.AspNetCore.Components
+    open Microsoft.AspNetCore.Components.Routing
+    open Microsoft.Extensions.Localization
     open Microsoft.FluentUI.AspNetCore.Components
     open Microsoft.JSInterop
     open Fun.Blazor
     open FeedViewer
     open System
-    open Microsoft.AspNetCore.Components.Routing
 
     type public OpenLinkProvider(los: ILinkOpeningService) =
         [<JSInvokable>]
@@ -90,13 +91,17 @@ module Types =
         member store.SearchString = store.CreateCVal(nameof store.SearchString, "")
         member store.SearchEnabled = store.CreateCVal(nameof store.SearchEnabled, false)
 
+    type DialogData<'T>(data: 'T, localizer: IStringLocalizer<SharedResources>) =
+        member val Data = data with get, set
+        member val Localizer = localizer with get, set
+
     type FeedGroupDialog() =
         inherit FunComponent()
 
         [<Parameter>]
-        member val Content = Unchecked.defaultof<ChannelGroup> with get, set
+        member val Content = Unchecked.defaultof<DialogData<ChannelGroup>> with get, set
 
-        interface IDialogContentComponent<ChannelGroup> with
+        interface IDialogContentComponent<DialogData<ChannelGroup>> with
             member this.Content = this.Content
 
             member this.Content
@@ -114,12 +119,12 @@ module Types =
 
                 FluentDialogBody'' {
                     FluentTextField'' {
-                        label' "Group Name"
-                        value this.Content.Name
+                        label' (string (this.Content.Localizer["FolderName"]))
+                        value this.Content.Data.Name
                         Immediate true
 
                         ValueChanged(fun (x: string) ->
-                            this.Content.Name <- x
+                            this.Content.Data.Name <- x
                             this.StateHasChanged())
                     }
                 }
@@ -127,15 +132,15 @@ module Types =
                 FluentDialogFooter'' {
                     FluentButton'' {
                         Appearance Appearance.Accent
-                        disabled (String.IsNullOrWhiteSpace this.Content.Name)
+                        disabled (String.IsNullOrWhiteSpace this.Content.Data.Name)
                         OnClick(fun _ -> task { this.Dialog.CloseAsync(this.Content) |> Async.AwaitTask |> ignore })
-                        "Save"
+                        string (this.Content.Localizer["Save"])
                     }
 
                     FluentButton'' {
                         Appearance Appearance.Neutral
                         OnClick(fun _ -> task { this.Dialog.CancelAsync() |> Async.AwaitTask |> ignore })
-                        "Cancel"
+                        string (this.Content.Localizer["Cancel"])
                     }
                 }
             }
@@ -148,9 +153,9 @@ module Types =
         inherit FunComponent()
 
         [<Parameter>]
-        member val Content = Unchecked.defaultof<ChannelEdit> with get, set
+        member val Content = Unchecked.defaultof<DialogData<ChannelEdit>> with get, set
 
-        interface IDialogContentComponent<ChannelEdit> with
+        interface IDialogContentComponent<DialogData<ChannelEdit>> with
             member this.Content = this.Content
 
             member this.Content
@@ -162,7 +167,7 @@ module Types =
         override this.Render() =
             adapt {
                 let groupId =
-                    match this.Content.Channel.GroupId with
+                    match this.Content.Data.Channel.GroupId with
                     | Some id -> id
                     | None -> 0
 
@@ -176,29 +181,29 @@ module Types =
                         Orientation Orientation.Vertical
 
                         FluentTextField'' {
-                            label' "Title"
-                            value this.Content.Channel.Title
+                            label' (string (this.Content.Localizer["Title"]))
+                            value this.Content.Data.Channel.Title
                             Immediate true
 
                             ValueChanged(fun (x: string) ->
-                                this.Content.Channel.Title <- x
+                                this.Content.Data.Channel.Title <- x
                                 this.StateHasChanged())
                         }
 
                         FluentTextField'' {
                             label' "Url"
                             style' "width: 450px;"
-                            value this.Content.Channel.Url
+                            value this.Content.Data.Channel.Url
                             ReadOnly true
                         }
 
                         FluentSelect'' {
-                            label' "Folder"
+                            label' (string (this.Content.Localizer["Folder"]))
                             type' typeof<ChannelGroup>
-                            Items this.Content.Groups
+                            Items this.Content.Data.Groups
                             OptionValue(fun (x: ChannelGroup) -> Convert.ToString x.Id)
                             OptionText(fun (x: ChannelGroup) -> x.Name)
-                            SelectedOption(this.Content.Groups |> List.find (fun x -> x.Id = groupId))
+                            SelectedOption(this.Content.Data.Groups |> List.find (fun x -> x.Id = groupId))
 
                             SelectedOptionChanged(fun (x: ChannelGroup) ->
                                 let id =
@@ -206,7 +211,7 @@ module Types =
                                     | 0 -> None
                                     | _ -> Some x.Id
 
-                                this.Content.Channel.GroupId <- id)
+                                this.Content.Data.Channel.GroupId <- id)
                         }
                     }
                 }
@@ -214,15 +219,15 @@ module Types =
                 FluentDialogFooter'' {
                     FluentButton'' {
                         Appearance Appearance.Accent
-                        disabled (String.IsNullOrWhiteSpace this.Content.Channel.Title)
+                        disabled (String.IsNullOrWhiteSpace this.Content.Data.Channel.Title)
                         OnClick(fun _ -> task { this.Dialog.CloseAsync(this.Content) |> Async.AwaitTask |> ignore })
-                        "Save"
+                        string (this.Content.Localizer["Save"])
                     }
 
                     FluentButton'' {
                         Appearance Appearance.Neutral
                         OnClick(fun _ -> task { this.Dialog.CancelAsync() |> Async.AwaitTask |> ignore })
-                        "Cancel"
+                        string (this.Content.Localizer["Cancel"])
                     }
                 }
             }
@@ -241,9 +246,9 @@ module Types =
         member val IsValid = false with get, set
 
         [<Parameter>]
-        member val Content = Unchecked.defaultof<string> with get, set
+        member val Content = Unchecked.defaultof<DialogData<string>> with get, set
 
-        interface IDialogContentComponent<string> with
+        interface IDialogContentComponent<DialogData<string>> with
             member this.Content = this.Content
 
             member this.Content
@@ -266,13 +271,13 @@ module Types =
                         FluentTextField'' {
                             label' "URL"
                             style' "width: 450px;"
-                            value this.Content
+                            value this.Content.Data
                             Immediate true
                             TextFieldType TextFieldType.Url
 
                             ValueChanged(fun (x: string) ->
                                 this.IsValid <- isUrlValid x
-                                this.Content <- x
+                                this.Content.Data <- x
                                 this.StateHasChanged())
                         }
                     }
@@ -283,13 +288,13 @@ module Types =
                         Appearance Appearance.Accent
                         disabled (not this.IsValid)
                         OnClick(fun _ -> task { this.Dialog.CloseAsync(this.Content) |> Async.AwaitTask |> ignore })
-                        "Save"
+                        string (this.Content.Localizer["Save"])
                     }
 
                     FluentButton'' {
                         Appearance Appearance.Neutral
                         OnClick(fun _ -> task { this.Dialog.CancelAsync() |> Async.AwaitTask |> ignore })
-                        "Cancel"
+                        string (this.Content.Localizer["Cancel"])
                     }
                 }
             }

@@ -74,7 +74,7 @@ module ContentPage =
         | ByCategoryId categoryId -> dataAccess.Categories.GetByCategoryCount(categoryId)
         | BySearchString searchString -> dataAccess.Channels.GetSearchCount(searchString)
 
-    let rec main (id: ChannelId) =
+    let main (id: ChannelId) =
         html.inject (fun (store: IShareStore, dataAccess: IDataAccess, services: IServices, jsRuntime: IJSRuntime) ->
 
             store.CurrentChannelId.Publish(id)
@@ -95,15 +95,15 @@ module ContentPage =
                     store.SelectedChannelItem.Publish(SelectedChannelItem.NotSelected)
             | NotLoadedFeedItemsList -> store.SelectedChannelItem.Publish(SelectedChannelItem.NotSelected)
 
-            let title =
+            let title: string =
                 match id with
-                | All -> "All"
-                | ReadLater -> "Read Later"
-                | Starred -> "Starred"
+                | All -> string (services.Localizer["All"])
+                | ReadLater -> string (services.Localizer["ReadLater"])
+                | Starred -> string (services.Localizer["Favorites"])
                 | ByGroupId groupId -> dataAccess.ChannelsGroups.GetById(groupId).Value.Name
                 | ByChannelId channelId -> dataAccess.Channels.Get(channelId).Value.Title
                 | ByCategoryId categoryId -> dataAccess.Categories.Get(categoryId).Value.Name
-                | BySearchString _ -> "Search Results"
+                | BySearchString _ -> string (services.Localizer["SearchResults"])
 
             store.UnreadCount.Publish(getUnreadCount (id, dataAccess))
 
@@ -171,7 +171,7 @@ module ContentPage =
                                 HorizontalGap 2
 
                                 FluentTextField'' {
-                                    placeholder "Search"
+                                    placeholder (string (services.Localizer["Search"]))
                                     style' "min-width: 150px;width: 100%;"
                                     minlength 3
                                     maxlength 35
@@ -188,13 +188,13 @@ module ContentPage =
                                 FluentButton'' {
                                     IconStart(Icons.Regular.Size20.Search())
                                     disabled (not searchEnabled)
-                                    Title "Search"
+                                    Title(string (services.Localizer["Search"]))
                                     OnClick(fun _ -> services.Navigation.NavigateTo($"/search/{searchString}"))
                                 }
 
                                 FluentButton'' {
                                     IconStart(Icons.Regular.Size20.CheckmarkCircle())
-                                    Title "Mark All Read"
+                                    Title(string (services.Localizer["MarkAllRead"]))
 
                                     OnClick(fun _ ->
                                         match store.CurrentChannelId.Value with
@@ -209,7 +209,7 @@ module ContentPage =
 
                                 FluentButton'' {
                                     IconStart(Icons.Regular.Size20.ArrowSyncCircle())
-                                    Title "Synchronize"
+                                    Title(string (services.Localizer["Synchronize"]))
                                     disabled synchronizeButtonDisabled
 
                                     OnClick(fun _ ->
@@ -308,7 +308,7 @@ module ContentPage =
 
                                     MyCheckBox.Create(
                                         selItem.IsRead,
-                                        "Set As Read",
+                                        string (services.Localizer["SetAsRead"]),
                                         Icons.Filled.Size16.CheckboxChecked(),
                                         Icons.Regular.Size16.CheckboxUnchecked(),
                                         (fun b -> setRead (selItem, b))
@@ -316,7 +316,7 @@ module ContentPage =
 
                                     MyCheckBox.Create(
                                         selItem.IsReadLater,
-                                        "Set Read Later",
+                                        string (services.Localizer["SetReadLater"]),
                                         Icons.Filled.Size16.Flag(),
                                         Icons.Regular.Size16.Flag(),
                                         (fun b ->
@@ -329,7 +329,7 @@ module ContentPage =
 
                                     MyCheckBox.Create(
                                         selItem.IsFavorite,
-                                        "Set Favorite",
+                                        string (services.Localizer["SetFavorite"]),
                                         Icons.Filled.Size16.Star(),
                                         Icons.Regular.Size16.Star(),
                                         (fun b ->
@@ -343,7 +343,7 @@ module ContentPage =
                                     FluentButton'' {
                                         IconStart(Icons.Regular.Size16.Delete())
                                         style' "height: 20px;"
-                                        title' "Delete"
+                                        title' (string (services.Localizer["Delete"]))
 
                                         OnClick(fun _ ->
                                             let mutable item = selItem
@@ -380,7 +380,7 @@ module ContentPage =
                                     FluentButton'' {
                                         IconStart(Icons.Regular.Size16.Bookmark())
                                         style' "height: 20px;"
-                                        title' "Categories"
+                                        title' (string (services.Localizer["Categories"]))
 
                                         OnClick(fun _ ->
                                             task {
@@ -388,7 +388,7 @@ module ContentPage =
 
                                                 let parameters = DialogParameters<list<Category>>()
                                                 parameters.Content <- data
-                                                parameters.Title <- "Categories"
+                                                parameters.Title <- string (services.Localizer["Categories"])
                                                 parameters.Alignment <- HorizontalAlignment.Right
                                                 parameters.Width <- "260px"
                                                 parameters.Modal <- true
@@ -557,7 +557,7 @@ module ContentPage =
                                     EmptyContent(
                                         div {
                                             style' "font-size: 12px; font-weight: bold;"
-                                            "No items"
+                                            string (services.Localizer["NoItems"])
                                         }
                                     )
                                 }

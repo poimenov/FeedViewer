@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+    <data name="All" xml:space="preserve">
+        <value>Все</value>
+    </data>  
+    <data name="ReadLater" xml:space="preserve">
+        <value>Читать Позже</value>
+    </data>     
+    <data name="Favorites" xml:space="preserve">
+        <value>Избранное</value>
+    </data> 
+    <data name="SearchResults" xml:space="preserve">
+        <value>Результаты Поиска</value>
+    </data>                       
+    <data name="Search" xml:space="preserve">
+        <value>Поиск</value>
+    </data>     
+    <data name="MarkAllRead" xml:space="preserve">
+        <value>Отметить Все Прочитанными</value>
+    </data> 
+    <data name="Synchronize" xml:space="preserve">
+        <value>Синхронизировать</value>
+    </data>  
+    <data name="SetAsRead" xml:space="preserve">
+        <value>Отметить Как Прочитанное</value>
+    </data>
+    <data name="SetReadLater" xml:space="preserve">
+        <value>Добавить В «Прочитать Позже»</value>
+    </data> 
+    <data name="SetFavorite" xml:space="preserve">
+        <value>Добавить В Избранное</value>
+    </data>     
+    <data name="Delete" xml:space="preserve">
+        <value>Удалить</value>
+    </data>       
+    <data name="Categories" xml:space="preserve">
+        <value>Категории</value>
+    </data> 
+    <data name="NoItems" xml:space="preserve">
+        <value>Нет Элементов</value>
+    </data>  
+    <data name="GitHub" xml:space="preserve">
+        <value>Исходный Код На GitHub</value>
+    </data>
+    <data name="Settings" xml:space="preserve">
+        <value>Настройки</value>
+    </data>
+    <data name="Export" xml:space="preserve">
+        <value>Экспорт</value>
+    </data>
+    <data name="SelectOpmlFile" xml:space="preserve">
+        <value>Выберите Opml Файл</value>
+    </data>            
+    <data name="Import" xml:space="preserve">
+        <value>Импорт</value>
+    </data> 
+    <data name="SwitchToLightMode" xml:space="preserve">
+        <value>Переключиться В Светлый Режим</value>
+    </data> 
+    <data name="SwitchToDarkMode" xml:space="preserve">
+        <value>Переключиться В Тёмный Режим</value>
+    </data> 
+    <data name="OrganizeFeeds" xml:space="preserve">
+        <value>Организовать Каналы</value>
+    </data> 
+    <data name="Folders" xml:space="preserve">
+        <value>Папки</value>
+    </data>
+    <data name="AddNewFolder" xml:space="preserve">
+        <value>Создать Папку</value>
+    </data>
+    <data name="AddFolder" xml:space="preserve">
+        <value>Добавить Папку</value>
+    </data>
+    <data name="EditCurrentFolder" xml:space="preserve">
+        <value>Редактировать Текущую Папку</value>
+    </data>
+    <data name="EditFolder" xml:space="preserve">
+        <value>Редактировать Папку</value>
+    </data>
+    <data name="RemoveCurrentFolder" xml:space="preserve">
+        <value>Удалить Текущую Папку</value>
+    </data>
+    <data name="RemoveCurrentFeed" xml:space="preserve">
+        <value>Удалить Текущий Канал</value>
+    </data>    
+    <data name="RemoveFolder" xml:space="preserve">
+        <value>Удалить Папку</value>
+    </data>
+    <data name="AddFeedToCurrentFolder" xml:space="preserve">
+        <value>Добавить Канал В Текущую Папку</value>
+    </data>                        
+    <data name="AddFeed" xml:space="preserve">
+        <value>Добавить Канал</value>
+    </data> 
+    <data name="OpenSiteInBrowser" xml:space="preserve">
+        <value>Открыть Сайт В Браузере</value>
+    </data> 
+    <data name="EditFeedChannel" xml:space="preserve">
+        <value>Редактировать Канал</value>
+    </data> 
+    <data name="Edit" xml:space="preserve">
+        <value>Редактировать</value>
+    </data>     
+    <data name="Cancel" xml:space="preserve">
+        <value>Отмена</value>
+    </data> 
+    <data name="AreYouSure" xml:space="preserve">
+        <value>Вы Уверены?</value>
+    </data>                     
+    <data name="WillBeRemoved" xml:space="preserve">
+        <value>Будет Удалён</value>
+    </data>      
+    <data name="Folder" xml:space="preserve">
+        <value>Папка</value>
+    </data>      
+    <data name="Feed" xml:space="preserve">
+        <value>Канал</value>
+    </data> 
+    <data name="NoFeeds" xml:space="preserve">
+        <value>Нет Каналов Для Отображения</value>
+    </data>    
+    <data name="Save" xml:space="preserve">
+        <value>Сохранить</value>
+    </data> 
+    <data name="Title" xml:space="preserve">
+        <value>Название</value>
+    </data> 
+    <data name="FolderName" xml:space="preserve">
+        <value>Название папки</value>
+    </data>                       
+</root>

@@ -13,6 +13,7 @@ open FSharp.Data
 open CodeHollow.FeedReader
 open Microsoft.FluentUI.AspNetCore.Components
 open Microsoft.AspNetCore.Components
+open Microsoft.Extensions.Localization
 
 type Platform =
     | Windows
@@ -539,16 +540,19 @@ type IServices =
     abstract member LinkOpeningService: ILinkOpeningService
     abstract member DialogService: IDialogService
     abstract member Navigation: NavigationManager
+    abstract member Localizer: IStringLocalizer<SharedResources>
 
 type Services
     (
         channelReader: IChannelReader,
         linkOpeningService: ILinkOpeningService,
         dialogService: IDialogService,
-        navigation: NavigationManager
+        navigation: NavigationManager,
+        localizer: IStringLocalizer<SharedResources>
     ) =
     interface IServices with
         member this.ChannelReader = channelReader
         member this.LinkOpeningService = linkOpeningService
         member this.DialogService = dialogService
         member this.Navigation: NavigationManager = navigation
+        member this.Localizer: IStringLocalizer<SharedResources> = localizer
