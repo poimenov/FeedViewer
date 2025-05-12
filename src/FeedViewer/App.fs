@@ -76,7 +76,10 @@ module App =
                                 FluentMenuItem'' {
                                     OnClick(fun _ ->
                                         let folder =
-                                            openService.OpenFolder(title = "Select folder", multiSelect = false)
+                                            openService.OpenFolder(
+                                                title = string (services.Localizer["SelectFolder"]),
+                                                multiSelect = false
+                                            )
 
                                         if folder.Any() then
                                             Path.Combine(folder.First(), "FeedViewer.opml") |> exportImport.Export)

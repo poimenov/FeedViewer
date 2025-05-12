@@ -50,7 +50,10 @@
     </data>
     <data name="SelectOpmlFile" xml:space="preserve">
         <value>Выберите Opml Файл</value>
-    </data>            
+    </data> 
+    <data name="SelectFolder" xml:space="preserve">
+        <value>Выберите папку</value>
+    </data>                
     <data name="Import" xml:space="preserve">
         <value>Импорт</value>
     </data> 
