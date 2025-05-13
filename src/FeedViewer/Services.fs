@@ -256,7 +256,13 @@ type IconDownloader(http: IHttpHandler, logger: ILogger<IconDownloader>) =
 
                             let allowedHref (href: string) =
                                 let extensions = [| ".png"; ".jpg"; ".jpeg"; ".gif"; ".webp"; ".bmp"; ".ico" |]
-                                let hrefFilePath = href.Substring(0, href.IndexOf("?"))
+
+                                let hrefFilePath =
+                                    if href.Contains("?") then
+                                        href.Substring(0, href.IndexOf("?"))
+                                    else
+                                        href
+
                                 extensions |> Array.exists (fun ext -> hrefFilePath.EndsWith(ext))
 
                             let links =

@@ -335,6 +335,13 @@ module OrganizeFeeds =
                                         }
 
                                         TemplateColumn'' {
+                                            width "50px"
+
+                                            ChildContent(fun (c: Channel) ->
+                                                span { dataAccess.Channels.GetChannelUnreadCount(c.Id) })
+                                        }
+
+                                        TemplateColumn'' {
                                             ChildContent(fun (c: Channel) ->
                                                 a {
                                                     href c.Url
