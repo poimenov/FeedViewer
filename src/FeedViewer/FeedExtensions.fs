@@ -180,7 +180,9 @@ type FeeItemExtensions =
                     else
                         this.Description
 
-                let width, height =
+                let frameStyle =
+                    let defaultStyle = "width:100%;aspect-ratio:16 / 9;"
+
                     if
                         media.IsSome
                         && media.Value |> Seq.exists (fun m -> m.Type = "application/x-shockwave-flash")
@@ -188,15 +190,16 @@ type FeeItemExtensions =
                         let video =
                             media.Value |> Seq.find (fun m -> m.Type = "application/x-shockwave-flash")
 
-                        let width = if video.Width.HasValue then video.Width.Value else 640
-                        let height = if video.Height.HasValue then video.Height.Value else 480
-                        width, height
+                        if video.Width.HasValue && video.Height.HasValue then
+                            $"width:{video.Width.Value}px;height:{video.Height.Value}px;"
+                        else
+                            defaultStyle
                     else
-                        640, 480
+                        defaultStyle
 
-                $"<div><iframe data-clean=\"yes\" width=\"{width}\" height=\"{height}\" 
+                $"<div><iframe data-clean=\"yes\" style=\"border: 0px;{frameStyle}\"
                 src=\"https://www.youtube.com/embed/{id.Value}\"title=\"{this.Title}\" 
-                allowfullscreen=\"\" style=\"border: 0px;\"></iframe></div><div class=\"pre\">{description}</div>"
+                allowfullscreen=\"\"></iframe></div><div class=\"pre\">{description}</div>"
             else
                 let tContent = this.GetTurboContent()
                 if tContent.IsSome then tContent.Value else this.Content
