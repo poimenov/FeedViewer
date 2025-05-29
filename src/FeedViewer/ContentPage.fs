@@ -575,66 +575,48 @@ module ContentPage =
                             adapt {
                                 let! selectedItem, setSelectedItem = store.SelectedChannelItem.WithSetter()
 
-                                let tryGetNextElement (element: ChannelItem, list: ChannelItem list) =
+                                let Next (element: ChannelItem, list: ChannelItem list) =
                                     list
                                     |> List.tryFindIndex ((=) element)
                                     |> Option.bind (fun i ->
                                         if i < List.length list - 1 then Some list.[i + 1] else None)
 
-                                let tryGetPreviousElement (element: ChannelItem, list: ChannelItem list) =
+                                let Previous (element: ChannelItem, list: ChannelItem list) =
                                     list
                                     |> List.tryFindIndex ((=) element)
                                     |> Option.bind (fun i -> if 0 < i then Some list.[i - 1] else None)
 
-                                let moveToNextItem (chItems: Types.ChannelItems, chItem: SelectedChannelItem) =
-                                    match chItems with
-                                    | NotLoadedFeedItemsList -> ()
-                                    | LoadedFeedItemsList items ->
-                                        match chItem with
-                                        | NotSelected -> ()
-                                        | Selected item ->
-                                            match tryGetNextElement (item, items) with
-                                            | None -> ()
-                                            | Some next ->
-                                                setSelectedItem (SelectedChannelItem.Selected next)
-                                                jsRuntime.InvokeAsync("ScrollToSelectedItem") |> ignore
-
-                                let moveToPreviousItem (chItems: Types.ChannelItems, chItem: SelectedChannelItem) =
-                                    match chItems with
-                                    | NotLoadedFeedItemsList -> ()
-                                    | LoadedFeedItemsList items ->
-                                        match chItem with
-                                        | NotSelected -> ()
-                                        | Selected item ->
-                                            match tryGetPreviousElement (item, items) with
-                                            | None -> ()
-                                            | Some next ->
-                                                setSelectedItem (SelectedChannelItem.Selected next)
-                                                jsRuntime.InvokeAsync("ScrollToSelectedItem") |> ignore
-
-                                let isDiasbledNextButton (chItems: Types.ChannelItems, chItem: SelectedChannelItem) =
+                                let isDisabled f chItems chItem =
                                     match chItems with
                                     | NotLoadedFeedItemsList -> true
                                     | LoadedFeedItemsList items ->
                                         match chItem with
                                         | NotSelected -> true
                                         | Selected item ->
-                                            match tryGetNextElement (item, items) with
+                                            match f (item, items) with
                                             | None -> true
-                                            | Some next -> false
+                                            | Some _ -> false
 
-                                let isDisabledPreviousButton
-                                    (chItems: Types.ChannelItems, chItem: SelectedChannelItem)
-                                    =
+                                let moveTo f chItems chItem =
                                     match chItems with
-                                    | NotLoadedFeedItemsList -> true
+                                    | NotLoadedFeedItemsList -> ()
                                     | LoadedFeedItemsList items ->
                                         match chItem with
-                                        | NotSelected -> true
+                                        | NotSelected -> ()
                                         | Selected item ->
-                                            match tryGetPreviousElement (item, items) with
-                                            | None -> true
-                                            | Some next -> false
+                                            match f (item, items) with
+                                            | None -> ()
+                                            | Some next ->
+                                                setSelectedItem (SelectedChannelItem.Selected next)
+                                                jsRuntime.InvokeAsync("ScrollToSelectedItem") |> ignore
+
+                                let moveToNext (chItems, chItem) = moveTo Next chItems chItem
+
+                                let moveToPrevious (chItems, chItem) = moveTo Previous chItems chItem
+
+                                let isDiasbledNext (chItems, chItem) = isDisabled Next chItems chItem
+
+                                let isDisabledPrevious (chItems, chItem) = isDisabled Previous chItems chItem
 
                                 let contentHtml =
                                     let txt =
@@ -657,15 +639,15 @@ module ContentPage =
                                     FluentFlipper'' {
                                         style' "position: absolute; top: 50%;left:10px;"
                                         Direction FlipperDirection.Previous
-                                        disabled (isDisabledPreviousButton (store.FeedItems.Value, selectedItem))
-                                        onclick (fun _ -> moveToPreviousItem (store.FeedItems.Value, selectedItem))
+                                        disabled (isDisabledPrevious (store.FeedItems.Value, selectedItem))
+                                        onclick (fun _ -> moveToPrevious (store.FeedItems.Value, selectedItem))
                                     }
 
                                     FluentFlipper'' {
                                         style' "position: absolute; top: 50%;right:10px;"
                                         Direction FlipperDirection.Next
-                                        disabled (isDiasbledNextButton (store.FeedItems.Value, selectedItem))
-                                        onclick (fun _ -> moveToNextItem (store.FeedItems.Value, selectedItem))
+                                        disabled (isDiasbledNext (store.FeedItems.Value, selectedItem))
+                                        onclick (fun _ -> moveToNext (store.FeedItems.Value, selectedItem))
                                     }
 
                                     div {
