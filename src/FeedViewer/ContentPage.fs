@@ -9,6 +9,48 @@ module ContentPage =
     open Fun.Blazor
     open FeedViewer
 
+    type NextPrevLogic(store: IShareStore, jsRuntime: IJSRuntime) =
+        let Next (element: ChannelItem, list: ChannelItem list) =
+            list
+            |> List.tryFindIndex ((=) element)
+            |> Option.bind (fun i -> if i < List.length list - 1 then Some list.[i + 1] else None)
+
+        let Previous (element: ChannelItem, list: ChannelItem list) =
+            list
+            |> List.tryFindIndex ((=) element)
+            |> Option.bind (fun i -> if 0 < i then Some list.[i - 1] else None)
+
+        let getItem f chItems chItem =
+            match chItems with
+            | NotLoadedFeedItemsList -> None
+            | LoadedFeedItemsList items ->
+                match chItem with
+                | NotSelected -> None
+                | Selected item -> f (item, items)
+
+        let isDisabled f chItems chItem =
+            match getItem f chItems chItem with
+            | None -> true
+            | Some _ -> false
+
+        let moveTo f chItems chItem =
+            match getItem f chItems chItem with
+            | None -> ()
+            | Some item ->
+                store.SelectedChannelItem.Publish(SelectedChannelItem.Selected item)
+                jsRuntime.InvokeAsync("ScrollToSelectedItem") |> ignore
+
+        member this.MoveToNext(chItems: Types.ChannelItems, chItem: SelectedChannelItem) = moveTo Next chItems chItem
+
+        member this.MoveToPrevious(chItems: Types.ChannelItems, chItem: SelectedChannelItem) =
+            moveTo Previous chItems chItem
+
+        member this.IsNextDisabled(chItems: Types.ChannelItems, chItem: SelectedChannelItem) =
+            isDisabled Next chItems chItem
+
+        member this.IsPreviousDisabled(chItems: Types.ChannelItems, chItem: SelectedChannelItem) =
+            isDisabled Previous chItems chItem
+
     let load (id: ChannelId, store: IShareStore, dataAccess: IDataAccess) =
         match id with
         | All -> store.FeedItems.Publish(ChannelItems.LoadedFeedItemsList(dataAccess.ChannelItems.GetByRead(false)))
@@ -574,49 +616,7 @@ module ContentPage =
 
                             adapt {
                                 let! selectedItem, setSelectedItem = store.SelectedChannelItem.WithSetter()
-
-                                let Next (element: ChannelItem, list: ChannelItem list) =
-                                    list
-                                    |> List.tryFindIndex ((=) element)
-                                    |> Option.bind (fun i ->
-                                        if i < List.length list - 1 then Some list.[i + 1] else None)
-
-                                let Previous (element: ChannelItem, list: ChannelItem list) =
-                                    list
-                                    |> List.tryFindIndex ((=) element)
-                                    |> Option.bind (fun i -> if 0 < i then Some list.[i - 1] else None)
-
-                                let isDisabled f chItems chItem =
-                                    match chItems with
-                                    | NotLoadedFeedItemsList -> true
-                                    | LoadedFeedItemsList items ->
-                                        match chItem with
-                                        | NotSelected -> true
-                                        | Selected item ->
-                                            match f (item, items) with
-                                            | None -> true
-                                            | Some _ -> false
-
-                                let moveTo f chItems chItem =
-                                    match chItems with
-                                    | NotLoadedFeedItemsList -> ()
-                                    | LoadedFeedItemsList items ->
-                                        match chItem with
-                                        | NotSelected -> ()
-                                        | Selected item ->
-                                            match f (item, items) with
-                                            | None -> ()
-                                            | Some next ->
-                                                setSelectedItem (SelectedChannelItem.Selected next)
-                                                jsRuntime.InvokeAsync("ScrollToSelectedItem") |> ignore
-
-                                let moveToNext (chItems, chItem) = moveTo Next chItems chItem
-
-                                let moveToPrevious (chItems, chItem) = moveTo Previous chItems chItem
-
-                                let isDiasbledNext (chItems, chItem) = isDisabled Next chItems chItem
-
-                                let isDisabledPrevious (chItems, chItem) = isDisabled Previous chItems chItem
+                                let navLogic = NextPrevLogic(store, jsRuntime)
 
                                 let contentHtml =
                                     let txt =
@@ -639,15 +639,15 @@ module ContentPage =
                                     FluentFlipper'' {
                                         style' "position: absolute; top: 50%;left:10px;"
                                         Direction FlipperDirection.Previous
-                                        disabled (isDisabledPrevious (store.FeedItems.Value, selectedItem))
-                                        onclick (fun _ -> moveToPrevious (store.FeedItems.Value, selectedItem))
+                                        disabled (navLogic.IsPreviousDisabled(store.FeedItems.Value, selectedItem))
+                                        onclick (fun _ -> navLogic.MoveToPrevious(store.FeedItems.Value, selectedItem))
                                     }
 
                                     FluentFlipper'' {
                                         style' "position: absolute; top: 50%;right:10px;"
                                         Direction FlipperDirection.Next
-                                        disabled (isDiasbledNext (store.FeedItems.Value, selectedItem))
-                                        onclick (fun _ -> moveToNext (store.FeedItems.Value, selectedItem))
+                                        disabled (navLogic.IsNextDisabled(store.FeedItems.Value, selectedItem))
+                                        onclick (fun _ -> navLogic.MoveToNext(store.FeedItems.Value, selectedItem))
                                     }
 
                                     div {
