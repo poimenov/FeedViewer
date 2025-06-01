@@ -15,6 +15,7 @@ open FeedViewer.Services
 open FeedViewer.DataAccess
 open FeedViewer.AppSettings
 
+[<STAThread>]
 [<EntryPoint>]
 let main args =
     let DATA_DIRECTORY = "DATA_DIRECTORY"
