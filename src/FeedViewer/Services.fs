@@ -180,7 +180,7 @@ type IHttpHandler =
     abstract member GetByteArrayAsync: string -> Task<byte[]>
     abstract member GetFeedUrlsFromUrlAsync: string -> Task<string[]>
     abstract member LoadFromWebAsync: string -> Task<HtmlDocument>
-    abstract member GetFeedAsync: string -> Task<Feed>
+    abstract member GetFeedAsync: string -> Task<Feed option>
 
 type HttpHandler() =
     [<Literal>]
@@ -223,11 +223,16 @@ type HttpHandler() =
         member this.LoadFromWebAsync(url: string) : Task<HtmlDocument> =
             async { return! HtmlDocument.AsyncLoad url } |> Async.StartAsTask
 
-        member this.GetFeedAsync(url: string) : Task<Feed> =
+        member this.GetFeedAsync(url: string) : Task<Feed option> =
             async {
                 let! response = Http.AsyncRequestString(url, headers = [| (USER_AGENT_HEADER_NAME, USER_AGENT) |])
-                let doc = XDocument.Parse response
-                return FeedReader.ReadFromString(doc.ToString())
+
+                try
+                    let doc = XDocument.Parse response
+                    return Some(FeedReader.ReadFromString(doc.ToString()))
+                with ex ->
+                    Debug.WriteLine($"Error parsing feed from {url}: {ex.Message}")
+                    return None
             }
             |> Async.StartAsTask
 
@@ -396,29 +401,33 @@ type ChannelReader
 
                     let! _feed =
                         async {
-                            try
-                                let! result = http.GetFeedAsync channel.Url |> Async.AwaitTask
-                                return Some result
-                            with ex ->
-                                Debug.WriteLine $"Can't load url = {channel.Url}"
-                                Debug.WriteLine $"Exception message: {ex.Message}"
+                            let! result = http.GetFeedAsync channel.Url |> Async.AwaitTask
 
-                                if channel.Link.IsSome then
-                                    try
-                                        let! feedLinks =
-                                            http.GetFeedUrlsFromUrlAsync channel.Link.Value |> Async.AwaitTask
+                            match result with
+                            | Some _ -> return result
+                            | None ->
+                                let link =
+                                    if channel.Link.IsSome then
+                                        channel.Link.Value
+                                    else
+                                        channel.Url
 
-                                        if feedLinks.Length > 0 then
-                                            let! result = http.GetFeedAsync(feedLinks[0]) |> Async.AwaitTask
+                                try
+                                    let! feedLinks = http.GetFeedUrlsFromUrlAsync link |> Async.AwaitTask
+
+                                    if feedLinks.Length > 0 then
+                                        let! feedResult = http.GetFeedAsync(feedLinks[0]) |> Async.AwaitTask
+
+                                        match feedResult with
+                                        | Some _ ->
                                             channel.Url <- feedLinks[0]
-                                            return Some result
-                                        else
-                                            return None
-                                    with ex1 ->
-                                        Debug.WriteLine $"Can't load url = {channel.Url}"
-                                        Debug.WriteLine $"Exception message: {ex1.Message}"
+                                            return feedResult
+                                        | None -> return None
+                                    else
                                         return None
-                                else
+                                with ex1 ->
+                                    Debug.WriteLine $"Can't load url = {channel.Url}"
+                                    Debug.WriteLine $"Exception message: {ex1.Message}"
                                     return None
                         }
 
