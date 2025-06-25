@@ -1,0 +1,31 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<opml version="1.0">
+  <head>
+    <title>FeedViewer</title>
+  </head>
+  <body>
+    <outline text="Entertainment" title="Entertainment">
+      <outline type="rss" text="Воффка Дот Ком" title="Воффка Дот Ком" xmlUrl="https://voffka.com/export/index.rss" htmlUrl="https://voffka.com/" />
+      <outline type="rss" text="Книга в Ухе" title="Книга в Ухе" xmlUrl="https://knigavuhe.org/rss/" htmlUrl="https://knigavuhe.org/" />
+      <outline type="rss" text="Триникси" title="Триникси" xmlUrl="http://trinixy.ru/rss.xml" htmlUrl="https://trinixy.ru/" />
+      <outline type="rss" text="ЯПлакалъ" title="ЯПлакалъ" xmlUrl="http://www.yaplakal.com/news.xml" htmlUrl="https://www.yaplakal.com" />
+    </outline>
+    <outline text="IT News" title="IT News">
+      <outline type="rss" text=".NET Blog" title=".NET Blog" xmlUrl="https://blogs.msdn.microsoft.com/dotnet/feed/" htmlUrl="https://devblogs.microsoft.com/dotnet/" />
+      <outline type="rss" text="ASP.NET Dev Community" title="ASP.NET Dev Community" xmlUrl="https://dev.to/feed/tag/aspnetcore" htmlUrl="https://dev.to/t/aspnetcore" />
+      <outline type="rss" text="ASPSnippets RSS Feed" title="ASPSnippets RSS Feed" xmlUrl="https://www.aspsnippets.com/RSS.ashx" htmlUrl="https://www.aspsnippets.com/RSS.ashx" />
+      <outline type="rss" text="DotNet" title="DotNet" xmlUrl="https://www.youtube.com/feeds/videos.xml?channel_id=UCvtT19MZW8dq5Wwfu6B0oxw" htmlUrl="http://www.youtube.com/feeds/videos.xml?channel_id=UCvtT19MZW8dq5Wwfu6B0oxw" />
+      <outline type="rss" text="DotNetRu" title="DotNetRu" xmlUrl="https://www.youtube.com/feeds/videos.xml?channel_id=UCHFl23Ah_l4gEUTXYUStQdQ" htmlUrl="http://www.youtube.com/feeds/videos.xml?channel_id=UCHFl23Ah_l4gEUTXYUStQdQ" />
+      <outline type="rss" text="DotNext" title="DotNext" xmlUrl="https://www.youtube.com/feeds/videos.xml?channel_id=UCNPwMPudMEw-gnAT4zh_UZg" htmlUrl="http://www.youtube.com/feeds/videos.xml?channel_id=UCNPwMPudMEw-gnAT4zh_UZg" />
+      <outline type="rss" text="FPish.net" title="FPish.net" xmlUrl="http://fpish.net/rss/blogs/tag/1/f~23" htmlUrl="http://fpish.net" />
+      <outline type="rss" text="Overclockers" title="Overclockers" xmlUrl="https://overclockers.ru/rss/all.rss" htmlUrl="https://overclockers.ru" />
+      <outline type="rss" text="Rick Strahl's Web Log" title="Rick Strahl's Web Log" xmlUrl="https://feeds.feedburner.com/rickstrahl" htmlUrl="https://weblog.west-wind.com/" />
+      <outline type="rss" text="Scott Hanselman's Blog" title="Scott Hanselman's Blog" xmlUrl="https://feeds.hanselman.com/ScottHanselman" htmlUrl="https://www.hanselman.com/blog/" />
+      <outline type="rss" text="Sergey Tihon's Blog" title="Sergey Tihon's Blog" xmlUrl="https://sergeytihon.com/feed/" htmlUrl="https://sergeytihon.com" />
+      <outline type="rss" text="The DotNet Path" title="The DotNet Path" xmlUrl="https://www.youtube.com/feeds/videos.xml?channel_id=UCUoJ1b-Ll7NECtJ7XKvRYbg" htmlUrl="http://www.youtube.com/feeds/videos.xml?channel_id=UCUoJ1b-Ll7NECtJ7XKvRYbg" />
+      <outline type="rss" text="dotNetTips.com" title="dotNetTips.com" xmlUrl="https://dotnettips.wordpress.com/feed/" htmlUrl="https://dotnettips.wordpress.com" />
+      <outline type="rss" text="dotnetkicks.com" title="dotnetkicks.com" xmlUrl="https://dotnetkicks.com/feeds/rss" htmlUrl="https://dotnetkicks.com/" />
+      <outline type="rss" text="Хабр" title="Хабр" xmlUrl="https://habr.com/ru/rss/articles/?fl=ru" htmlUrl="https://habr.com/ru/articles/" />
+    </outline>
+  </body>
+</opml>
