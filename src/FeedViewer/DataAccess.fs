@@ -155,7 +155,7 @@ type IChannels =
     abstract member GetAll: unit -> Channel list
     abstract member GetByGroupId: int option -> Channel list
     abstract member GetChannelUnreadCount: int -> int
-    abstract member GetAllUnreadCount: unit -> int
+    abstract member GetAllCount: bool -> int
     abstract member GetStarredCount: unit -> int
     abstract member GetReadLaterCount: unit -> int
     abstract member GetSearchCount: string -> int
@@ -242,11 +242,13 @@ type Channels(connectionService: IConnectionService) =
             |> Db.query (fun reader -> getChannel reader)
             |> List.sortBy (fun channel -> channel.Title)
 
-        member this.GetAllUnreadCount() =
+        member this.GetAllCount(isRead) =
             use conn = connectionService.GetConnection()
 
             use cmd =
-                conn |> Db.newCommand "SELECT COUNT(*) FROM ChannelItems WHERE IsRead = 0;"
+                conn
+                |> Db.newCommand "SELECT COUNT(*) FROM ChannelItems WHERE IsRead = @IsRead;"
+                |> Db.setParams [ "IsRead", SqlType.Boolean isRead ]
 
             cmd |> Db.scalar Convert.ToInt32
 

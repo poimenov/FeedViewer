@@ -1,11 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <root>
     <data name="All" xml:space="preserve">
-        <value>All</value>
+        <value>All Unread</value>
     </data>
     <data name="ReadLater" xml:space="preserve">
         <value>Read Later</value>
-    </data>  
+    </data>
+    <data name="RecentlyRead" xml:space="preserve">
+        <value>Recently Read</value>
+    </data>    
     <data name="Favorites" xml:space="preserve">
         <value>Favorites</value>
     </data>  

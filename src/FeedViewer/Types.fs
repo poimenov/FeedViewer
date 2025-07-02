@@ -16,9 +16,10 @@ module Types =
         member public this.OpenLink(link: string) = los.OpenUrl link
 
     type ChannelId =
-        | All
+        | AllUnread
         | ReadLater
         | Starred
+        | RecentlyRead
         | ByGroupId of int
         | ByChannelId of int
         | ByCategoryId of int
@@ -77,7 +78,7 @@ module Types =
             store.CreateCVal(nameof store.FeedItems, ChannelItems.NotLoadedFeedItemsList)
 
         member store.CurrentChannelId =
-            store.CreateCVal(nameof store.CurrentChannelId, ChannelId.All)
+            store.CreateCVal(nameof store.CurrentChannelId, ChannelId.AllUnread)
 
         member store.CurrentIsRead = store.CreateCVal(nameof store.CurrentIsRead, false)
 
@@ -87,7 +88,7 @@ module Types =
         member store.CurrentIsFavorite =
             store.CreateCVal(nameof store.CurrentIsFavorite, false)
 
-        member store.UnreadCount = store.CreateCVal(nameof store.UnreadCount, 0)
+        member store.CountItems = store.CreateCVal(nameof store.CountItems, 0)
         member store.SearchString = store.CreateCVal(nameof store.SearchString, "")
         member store.SearchEnabled = store.CreateCVal(nameof store.SearchEnabled, false)
 

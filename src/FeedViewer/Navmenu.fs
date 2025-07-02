@@ -48,9 +48,10 @@ module Navmenu =
                             services.ChannelReader.ReadAllChannelsAsync(),
                             (fun _ ->
                                 match store.CurrentChannelId.Value with
-                                | All -> services.Navigation.NavigateTo("/channel/all")
+                                | AllUnread -> services.Navigation.NavigateTo("/channel/all")
                                 | ReadLater -> services.Navigation.NavigateTo("/channel/readlater")
                                 | Starred -> services.Navigation.NavigateTo("/channel/starred")
+                                | RecentlyRead -> services.Navigation.NavigateTo("/channel/recentlyread")
                                 | ByGroupId groupId -> services.Navigation.NavigateTo($"/group/{groupId}")
                                 | ByChannelId channelId -> services.Navigation.NavigateTo($"/channel/{channelId}")
                                 | ByCategoryId categoryId ->
@@ -105,6 +106,13 @@ module Navmenu =
                                 Match NavLinkMatch.Prefix
                                 Icon(Icons.Regular.Size20.Flag())
                                 string (services.Localizer["ReadLater"])
+                            }
+
+                            FluentNavLink'' {
+                                Href "/channel/recentlyread"
+                                Match NavLinkMatch.Prefix
+                                Icon(Icons.Regular.Size20.Clock())
+                                string (services.Localizer["RecentlyRead"])
                             }
 
                             yield!

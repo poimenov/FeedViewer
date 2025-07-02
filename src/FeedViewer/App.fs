@@ -206,15 +206,16 @@ module App =
 
     let routes =
         html.route
-            [| routeCi "/channel/all" (ContentPage.main All)
+            [| routeCi "/channel/all" (ContentPage.main AllUnread)
                routeCi "/channel/readlater" (ContentPage.main ReadLater)
                routeCi "/channel/starred" (ContentPage.main Starred)
+               routeCi "/channel/recentlyread" (ContentPage.main RecentlyRead)
                routeCif "/channel/%i" (fun x -> ContentPage.main (ByChannelId x))
                routeCif "/group/%i" (fun x -> ContentPage.main (ByGroupId x))
                routeCif "/category/%i" (fun x -> ContentPage.main (ByCategoryId x))
                routeCif "/search/%s" (fun x -> ContentPage.main (BySearchString x))
                routeCi "/feeds" OrganizeFeeds.main
-               routeAny (ContentPage.main All) |]
+               routeAny (ContentPage.main AllUnread) |]
 
     let main =
         ErrorBoundary'' {

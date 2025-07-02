@@ -53,11 +53,14 @@ module ContentPage =
 
     let load (id: ChannelId, store: IShareStore, dataAccess: IDataAccess) =
         match id with
-        | All -> store.FeedItems.Publish(ChannelItems.LoadedFeedItemsList(dataAccess.ChannelItems.GetByRead(false)))
+        | AllUnread ->
+            store.FeedItems.Publish(ChannelItems.LoadedFeedItemsList(dataAccess.ChannelItems.GetByRead(false)))
         | ReadLater ->
             store.FeedItems.Publish(ChannelItems.LoadedFeedItemsList(dataAccess.ChannelItems.GetByReadLater(true)))
         | Starred ->
             store.FeedItems.Publish(ChannelItems.LoadedFeedItemsList(dataAccess.ChannelItems.GetByFavorite(true)))
+        | RecentlyRead ->
+            store.FeedItems.Publish(ChannelItems.LoadedFeedItemsList(dataAccess.ChannelItems.GetByRead(true)))
         | ByGroupId groupId ->
             store.FeedItems.Publish(ChannelItems.LoadedFeedItemsList(dataAccess.ChannelItems.GetByGroupId(groupId)))
         | ByChannelId channelId ->
@@ -73,7 +76,7 @@ module ContentPage =
 
     let update (id: ChannelId, reader: IChannelReader) =
         match id with
-        | All -> reader.ReadAllChannelsAsync() |> Async.StartAsTask |> Async.AwaitTask
+        | AllUnread -> reader.ReadAllChannelsAsync() |> Async.StartAsTask |> Async.AwaitTask
         | ByGroupId groupId ->
             reader.ReadGroupAsync(groupId, AppSettings.IconsDirectoryPath)
             |> Async.StartAsTask
@@ -87,6 +90,7 @@ module ContentPage =
             |> Async.Parallel
             |> Async.StartAsTask
             |> Async.AwaitTask
+        | RecentlyRead -> async { return [||] }
         | ByCategoryId categoryId -> async { return [||] }
         | BySearchString searchString -> async { return [||] }
         | ReadLater -> async { return [||] }
@@ -106,11 +110,12 @@ module ContentPage =
             | _ -> ignore ()
         | _ -> ignore ()
 
-    let getUnreadCount (id: ChannelId, dataAccess: IDataAccess) =
+    let getCount (id: ChannelId, dataAccess: IDataAccess) =
         match id with
-        | All -> dataAccess.Channels.GetAllUnreadCount()
+        | AllUnread -> dataAccess.Channels.GetAllCount(false)
         | ReadLater -> dataAccess.Channels.GetReadLaterCount()
         | Starred -> dataAccess.Channels.GetStarredCount()
+        | RecentlyRead -> dataAccess.Channels.GetAllCount(true)
         | ByGroupId groupId -> dataAccess.ChannelsGroups.GetGroupUnreadCount(groupId)
         | ByChannelId channelId -> dataAccess.Channels.GetChannelUnreadCount(channelId)
         | ByCategoryId categoryId -> dataAccess.Categories.GetByCategoryCount(categoryId)
@@ -139,15 +144,16 @@ module ContentPage =
 
             let title: string =
                 match id with
-                | All -> string (services.Localizer["All"])
+                | AllUnread -> string (services.Localizer["All"])
                 | ReadLater -> string (services.Localizer["ReadLater"])
                 | Starred -> string (services.Localizer["Favorites"])
+                | RecentlyRead -> string (services.Localizer["RecentlyRead"])
                 | ByGroupId groupId -> dataAccess.ChannelsGroups.GetById(groupId).Value.Name
                 | ByChannelId channelId -> dataAccess.Channels.Get(channelId).Value.Title
                 | ByCategoryId categoryId -> dataAccess.Categories.Get(categoryId).Value.Name
                 | BySearchString _ -> string (services.Localizer["SearchResults"])
 
-            store.UnreadCount.Publish(getUnreadCount (id, dataAccess))
+            store.CountItems.Publish(getCount (id, dataAccess))
 
             fragment {
                 FluentStack'' {
@@ -156,7 +162,7 @@ module ContentPage =
 
                     adapt {
                         let! leftPaneWidth, setLeftPaneWidth = store.LeftPaneWidth.WithSetter()
-                        let! unreadCount, setUnreadCount = store.UnreadCount.WithSetter()
+                        let! countItems, setCountItems = store.CountItems.WithSetter()
                         let! searchString, setSearchString = store.SearchString.WithSetter()
                         let! synchronizeButtonDisabled, setSynchronizeButtonDisabled = cval(false).WithSetter()
                         let! searchEnabled, setSearchEnabled = store.SearchEnabled.WithSetter()
@@ -169,9 +175,10 @@ module ContentPage =
 
                         let getIcon: Icon =
                             match store.CurrentChannelId.Value with
-                            | All -> Icons.Regular.Size20.Document()
+                            | AllUnread -> Icons.Regular.Size20.Document()
                             | ReadLater -> Icons.Regular.Size20.Flag()
                             | Starred -> Icons.Regular.Size20.Star()
+                            | RecentlyRead -> Icons.Regular.Size20.Clock()
                             | ByChannelId channelId -> dataAccess.Channels.Get(channelId) |> Navmenu.getChannelIcon20
                             | ByGroupId _ -> Icons.Regular.Size20.Folder()
                             | ByCategoryId _ -> Icons.Regular.Size20.Bookmark()
@@ -204,7 +211,7 @@ module ContentPage =
                                             services.LinkOpeningService
                                         ))
 
-                                    $"{title} ({unreadCount})"
+                                    $"{title} ({countItems})"
                                 }
                             }
 
@@ -243,7 +250,7 @@ module ContentPage =
                                         | ByChannelId channelId ->
                                             dataAccess.ChannelItems.SetReadByChannelId(channelId, true)
                                         | ByGroupId groupId -> dataAccess.ChannelItems.SetReadByGroupId(groupId, true)
-                                        | All -> dataAccess.ChannelItems.SetReadAll(true)
+                                        | AllUnread -> dataAccess.ChannelItems.SetReadAll(true)
                                         | _ -> ()
 
                                         load (store.CurrentChannelId.Value, store, dataAccess))
@@ -289,7 +296,7 @@ module ContentPage =
                                     chItem.IsRead <- read
                                     dataAccess.ChannelItems.SetRead(chItem.Id, read)
                                     store.CurrentIsRead.Publish(read)
-                                    store.UnreadCount.Publish(getUnreadCount (currentChannelId, dataAccess))
+                                    store.CountItems.Publish(getCount (currentChannelId, dataAccess))
                                     setSelectedItem (SelectedChannelItem.Selected chItem)
 
                                 setRead (selItem, true)

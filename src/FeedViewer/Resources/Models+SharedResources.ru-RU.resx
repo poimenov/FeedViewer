@@ -5,6 +5,9 @@
     </data>  
     <data name="ReadLater" xml:space="preserve">
         <value>Читать Позже</value>
+    </data> 
+    <data name="RecentlyRead" xml:space="preserve">
+        <value>Прочитанные</value>
     </data>     
     <data name="Favorites" xml:space="preserve">
         <value>Избранное</value>
