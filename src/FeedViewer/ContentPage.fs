@@ -51,28 +51,40 @@ module ContentPage =
         member this.IsPreviousDisabled(chItems: Types.ChannelItems, chItem: SelectedChannelItem) =
             isDisabled Previous chItems chItem
 
-    let load (id: ChannelId, store: IShareStore, dataAccess: IDataAccess) =
-        match id with
-        | AllUnread ->
-            store.FeedItems.Publish(ChannelItems.LoadedFeedItemsList(dataAccess.ChannelItems.GetByRead(false)))
-        | ReadLater ->
-            store.FeedItems.Publish(ChannelItems.LoadedFeedItemsList(dataAccess.ChannelItems.GetByReadLater(true)))
-        | Starred ->
-            store.FeedItems.Publish(ChannelItems.LoadedFeedItemsList(dataAccess.ChannelItems.GetByFavorite(true)))
-        | RecentlyRead ->
-            store.FeedItems.Publish(ChannelItems.LoadedFeedItemsList(dataAccess.ChannelItems.GetByRead(true)))
-        | ByGroupId groupId ->
-            store.FeedItems.Publish(ChannelItems.LoadedFeedItemsList(dataAccess.ChannelItems.GetByGroupId(groupId)))
-        | ByChannelId channelId ->
-            store.FeedItems.Publish(ChannelItems.LoadedFeedItemsList(dataAccess.ChannelItems.GetByChannelId(channelId)))
-        | ByCategoryId categoryId ->
-            store.FeedItems.Publish(
-                ChannelItems.LoadedFeedItemsList(dataAccess.ChannelItems.GetByCategoryId(categoryId))
-            )
-        | BySearchString searchString ->
-            store.FeedItems.Publish(
-                ChannelItems.LoadedFeedItemsList(dataAccess.ChannelItems.GetBySearchString(searchString))
-            )
+    let load (id: ChannelId, isInitial: bool, store: IShareStore, channelItems: IChannelItems) =
+        let _offset =
+            if isInitial then
+                0
+            else
+                match store.FeedItems.Value with
+                | ChannelItems.LoadedFeedItemsList items -> items.Count()
+                | NotLoadedFeedItemsList -> 0
+
+        let _limit = store.Limit.Value
+
+        let newItems =
+            match id with
+            | AllUnread -> channelItems.GetByRead(false, _offset, _limit)
+            | ReadLater -> channelItems.GetByReadLater(true, _offset, _limit)
+            | Starred -> channelItems.GetByFavorite(true, _offset, _limit)
+            | RecentlyRead -> channelItems.GetByRead(true, _offset, _limit)
+            | ByGroupId groupId -> channelItems.GetByGroupId(groupId, _offset, _limit)
+            | ByChannelId channelId -> channelItems.GetByChannelId(channelId, _offset, _limit)
+            | ByCategoryId categoryId -> channelItems.GetByCategoryId(categoryId, _offset, _limit)
+            | BySearchString searchString -> channelItems.GetBySearchString(searchString, _offset, _limit)
+
+        if isInitial then
+            store.FeedItems.Publish(ChannelItems.LoadedFeedItemsList newItems)
+        elif newItems.Count() > 0 then
+            match store.FeedItems.Value with
+            | ChannelItems.LoadedFeedItemsList items ->
+                let updatedItems =
+                    items @ newItems |> List.sortByDescending (fun x -> x.PublishingDate)
+
+                store.FeedItems.Publish(ChannelItems.LoadedFeedItemsList updatedItems)
+            | NotLoadedFeedItemsList -> store.FeedItems.Publish(ChannelItems.LoadedFeedItemsList(newItems))
+        else
+            ()
 
     let update (id: ChannelId, reader: IChannelReader) =
         match id with
@@ -91,8 +103,8 @@ module ContentPage =
             |> Async.StartAsTask
             |> Async.AwaitTask
         | RecentlyRead -> async { return [||] }
-        | ByCategoryId categoryId -> async { return [||] }
-        | BySearchString searchString -> async { return [||] }
+        | ByCategoryId _ -> async { return [||] }
+        | BySearchString _ -> async { return [||] }
         | ReadLater -> async { return [||] }
         | Starred -> async { return [||] }
 
@@ -112,35 +124,34 @@ module ContentPage =
 
     let getCount (id: ChannelId, dataAccess: IDataAccess) =
         match id with
-        | AllUnread -> dataAccess.Channels.GetAllCount(false)
+        | AllUnread -> dataAccess.Channels.GetAllCount false
         | ReadLater -> dataAccess.Channels.GetReadLaterCount()
         | Starred -> dataAccess.Channels.GetStarredCount()
-        | RecentlyRead -> dataAccess.Channels.GetAllCount(true)
-        | ByGroupId groupId -> dataAccess.ChannelsGroups.GetGroupUnreadCount(groupId)
-        | ByChannelId channelId -> dataAccess.Channels.GetChannelUnreadCount(channelId)
-        | ByCategoryId categoryId -> dataAccess.Categories.GetByCategoryCount(categoryId)
-        | BySearchString searchString -> dataAccess.Channels.GetSearchCount(searchString)
+        | RecentlyRead -> dataAccess.Channels.GetAllCount true
+        | ByGroupId groupId -> dataAccess.ChannelsGroups.GetGroupUnreadCount groupId
+        | ByChannelId channelId -> dataAccess.Channels.GetChannelUnreadCount channelId
+        | ByCategoryId categoryId -> dataAccess.Categories.GetByCategoryCount categoryId
+        | BySearchString searchString -> dataAccess.Channels.GetSearchCount searchString
 
     let main (id: ChannelId) =
         html.inject (fun (store: IShareStore, dataAccess: IDataAccess, services: IServices, jsRuntime: IJSRuntime) ->
-
-            store.CurrentChannelId.Publish(id)
-            load (id, store, dataAccess)
+            store.CurrentChannelId.Publish id
+            load (id, true, store, dataAccess.ChannelItems)
 
             match id with
-            | BySearchString searchString -> ()
+            | BySearchString _ -> ()
             | _ ->
                 store.SearchString.Publish("")
-                store.SearchEnabled.Publish(false)
+                store.SearchEnabled.Publish false
 
             match store.FeedItems.Value with
             | ChannelItems.LoadedFeedItemsList items ->
                 if items.Count() > 0 then
                     let first = items |> Seq.head |> SelectedChannelItem.Selected
-                    store.SelectedChannelItem.Publish(first)
+                    store.SelectedChannelItem.Publish first
                 else
                     store.SelectedChannelItem.Publish(SelectedChannelItem.NotSelected)
-            | NotLoadedFeedItemsList -> store.SelectedChannelItem.Publish(SelectedChannelItem.NotSelected)
+            | NotLoadedFeedItemsList -> store.SelectedChannelItem.Publish SelectedChannelItem.NotSelected
 
             let title: string =
                 match id with
@@ -179,7 +190,7 @@ module ContentPage =
                             | ReadLater -> Icons.Regular.Size20.Flag()
                             | Starred -> Icons.Regular.Size20.Star()
                             | RecentlyRead -> Icons.Regular.Size20.Clock()
-                            | ByChannelId channelId -> dataAccess.Channels.Get(channelId) |> Navmenu.getChannelIcon20
+                            | ByChannelId channelId -> dataAccess.Channels.Get channelId |> Navmenu.getChannelIcon20
                             | ByGroupId _ -> Icons.Regular.Size20.Folder()
                             | ByCategoryId _ -> Icons.Regular.Size20.Bookmark()
                             | BySearchString _ -> Icons.Regular.Size20.Search()
@@ -238,7 +249,7 @@ module ContentPage =
                                     IconStart(Icons.Regular.Size20.Search())
                                     disabled (not searchEnabled)
                                     Title(string (services.Localizer["Search"]))
-                                    OnClick(fun _ -> services.Navigation.NavigateTo($"/search/{searchString}"))
+                                    OnClick(fun _ -> services.Navigation.NavigateTo $"/search/{searchString}")
                                 }
 
                                 FluentButton'' {
@@ -250,10 +261,10 @@ module ContentPage =
                                         | ByChannelId channelId ->
                                             dataAccess.ChannelItems.SetReadByChannelId(channelId, true)
                                         | ByGroupId groupId -> dataAccess.ChannelItems.SetReadByGroupId(groupId, true)
-                                        | AllUnread -> dataAccess.ChannelItems.SetReadAll(true)
+                                        | AllUnread -> dataAccess.ChannelItems.SetReadAll true
                                         | _ -> ()
 
-                                        load (store.CurrentChannelId.Value, store, dataAccess))
+                                        load (store.CurrentChannelId.Value, true, store, dataAccess.ChannelItems))
                                 }
 
                                 FluentButton'' {
@@ -264,8 +275,11 @@ module ContentPage =
                                     OnClick(fun _ ->
                                         task {
                                             setSynchronizeButtonDisabled true
+
                                             let! chnls = update (store.CurrentChannelId.Value, services.ChannelReader)
-                                            load (store.CurrentChannelId.Value, store, dataAccess)
+
+                                            load (store.CurrentChannelId.Value, false, store, dataAccess.ChannelItems)
+
                                             setSynchronizeButtonDisabled false
                                         })
                                 }
@@ -290,7 +304,7 @@ module ContentPage =
                                     | Some link -> link
                                     | None -> "#"
 
-                                let channel = dataAccess.Channels.Get(selItem.ChannelId)
+                                let channel = dataAccess.Channels.Get selItem.ChannelId
 
                                 let setRead (chItem: ChannelItem, read: bool) =
                                     chItem.IsRead <- read
@@ -300,8 +314,8 @@ module ContentPage =
                                     setSelectedItem (SelectedChannelItem.Selected chItem)
 
                                 setRead (selItem, true)
-                                store.CurrentIsReadLater.Publish(selItem.IsReadLater)
-                                store.CurrentIsFavorite.Publish(selItem.IsFavorite)
+                                store.CurrentIsReadLater.Publish selItem.IsReadLater
+                                store.CurrentIsFavorite.Publish selItem.IsFavorite
 
                                 a {
                                     class' "channel-item-title"
@@ -336,8 +350,8 @@ module ContentPage =
 
                                                 OnClick(fun _ ->
                                                     match channel.Link with
-                                                    | None -> services.LinkOpeningService.OpenUrl(channel.Url)
-                                                    | Some link -> services.LinkOpeningService.OpenUrl(link))
+                                                    | None -> services.LinkOpeningService.OpenUrl channel.Url
+                                                    | Some link -> services.LinkOpeningService.OpenUrl link)
 
                                                 channel.Title
                                             }
@@ -388,7 +402,7 @@ module ContentPage =
                                             let mutable item = selItem
                                             item.IsFavorite <- b
                                             dataAccess.ChannelItems.SetFavorite(item.Id, b)
-                                            store.CurrentIsFavorite.Publish(b)
+                                            store.CurrentIsFavorite.Publish b
                                             setSelectedItem (SelectedChannelItem.Selected item))
                                     )
 
@@ -469,7 +483,7 @@ module ContentPage =
                     Panel2MinSize "200px"
                     style' "height: calc(100% - 85px);"
 
-                    OnResized(fun args -> store.LeftPaneWidth.Publish(args.Panel1Size))
+                    OnResized(fun args -> store.LeftPaneWidth.Publish args.Panel1Size)
 
                     Panel1(
                         div {
@@ -488,7 +502,7 @@ module ContentPage =
 
                                 let! selectedItem, setSelectedItem = store.SelectedChannelItem.WithSetter()
 
-                                let channel (curr: ChannelItem) = dataAccess.Channels.Get(curr.ChannelId)
+                                let channel (curr: ChannelItem) = dataAccess.Channels.Get curr.ChannelId
 
                                 let channelName (curr: ChannelItem) =
                                     match channel curr with
@@ -499,6 +513,15 @@ module ContentPage =
                                     match selectedItem with
                                     | NotSelected -> false
                                     | Selected item -> curr.Id = item.Id
+
+                                let isLastItem (curr: ChannelItem) =
+                                    match items |> List.tryLast with
+                                    | Some last -> curr.Id = last.Id
+                                    | None -> false
+
+                                let addNextItems (curr: ChannelItem) =
+                                    if isLastItem curr && items.Length < store.CountItems.Value then
+                                        load (store.CurrentChannelId.Value, false, store, dataAccess.ChannelItems)
 
                                 let getSelectedClass (curr: ChannelItem) =
                                     if isCurrent curr then
@@ -542,6 +565,8 @@ module ContentPage =
                                     Items(items.ToList<ChannelItem>())
 
                                     ItemContent(fun item ->
+                                        addNextItems item
+
                                         div {
                                             class' (getSelectedClass item)
 
@@ -553,8 +578,8 @@ module ContentPage =
                                             )
 
                                             onclick (fun _ ->
-                                                let selected = SelectedChannelItem.Selected(item)
-                                                store.SelectedChannelItem.Publish(selected))
+                                                let selected = SelectedChannelItem.Selected item
+                                                store.SelectedChannelItem.Publish selected)
 
                                             div {
                                                 class' "channel-item-title"
@@ -647,6 +672,7 @@ module ContentPage =
                                         style' "position: absolute; top: 50%;left:10px;"
                                         Direction FlipperDirection.Previous
                                         disabled (navLogic.IsPreviousDisabled(store.FeedItems.Value, selectedItem))
+
                                         onclick (fun _ -> navLogic.MoveToPrevious(store.FeedItems.Value, selectedItem))
                                     }
 
@@ -660,7 +686,7 @@ module ContentPage =
                                     div {
                                         style' "height: 100%;overflow: auto;padding: 0 10px 0 15px;margin-right: 15px;"
 
-                                        childContentRaw (contentHtml)
+                                        childContentRaw contentHtml
                                     }
                                 }
                             }

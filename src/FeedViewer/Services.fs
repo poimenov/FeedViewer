@@ -556,6 +556,7 @@ type IServices =
     abstract member DialogService: IDialogService
     abstract member Navigation: NavigationManager
     abstract member Localizer: IStringLocalizer<SharedResources>
+    abstract member OpenDialogService: IOpenDialogService
 
 type Services
     (
@@ -563,7 +564,8 @@ type Services
         linkOpeningService: ILinkOpeningService,
         dialogService: IDialogService,
         navigation: NavigationManager,
-        localizer: IStringLocalizer<SharedResources>
+        localizer: IStringLocalizer<SharedResources>,
+        openDialogService: IOpenDialogService
     ) =
     interface IServices with
         member this.ChannelReader = channelReader
@@ -571,3 +573,4 @@ type Services
         member this.DialogService = dialogService
         member this.Navigation: NavigationManager = navigation
         member this.Localizer: IStringLocalizer<SharedResources> = localizer
+        member this.OpenDialogService: IOpenDialogService = openDialogService

@@ -16,10 +16,12 @@ module App =
         html.inject
             (fun
                 (store: IShareStore,
-                 openService: IOpenDialogService,
+                 hook: IComponentHook,
                  options: IOptions<AppSettings>,
                  exportImport: IExportImportService,
                  services: IServices) ->
+                hook.AddInitializedTask(fun _ -> task { store.Limit.Publish options.Value.DefaultLimit })
+
                 FluentHeader'' {
                     FluentStack'' {
                         Orientation Orientation.Horizontal
@@ -76,7 +78,7 @@ module App =
                                 FluentMenuItem'' {
                                     OnClick(fun _ ->
                                         let folder =
-                                            openService.OpenFolder(
+                                            services.OpenDialogService.OpenFolder(
                                                 title = string (services.Localizer["SelectFolder"]),
                                                 multiSelect = false
                                             )
@@ -100,7 +102,7 @@ module App =
                                 FluentMenuItem'' {
                                     OnClick(fun _ ->
                                         let file =
-                                            openService.OpenFile(
+                                            services.OpenDialogService.OpenFile(
                                                 title = string (services.Localizer["SelectOpmlFile"]),
                                                 multiSelect = false,
                                                 filters = [| ("Opml file", [| "opml" |]) |]
@@ -182,6 +184,7 @@ module App =
         html.inject (fun (los: ILinkOpeningService, hook: IComponentHook, jsRuntime: IJSRuntime) ->
             hook.AddFirstAfterRenderTask(fun _ ->
                 task {
+
                     let losObjRef = DotNetObjectReference.Create(OpenLinkProvider(los))
                     jsRuntime.InvokeAsync("SetOpenLinkProvider", losObjRef) |> ignore
                 })

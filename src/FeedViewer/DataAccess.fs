@@ -348,23 +348,25 @@ type IChannelItems =
     abstract member SetFavorite: int64 * bool -> unit
     abstract member SetDeleted: int64 * bool -> unit
     abstract member SetReadLater: int64 * bool -> unit
-    abstract member GetByChannelId: int -> ChannelItem list
-    abstract member GetByGroupId: int -> ChannelItem list
-    abstract member GetByReadLater: bool -> ChannelItem list
-    abstract member GetByRead: bool -> ChannelItem list
-    abstract member GetByFavorite: bool -> ChannelItem list
-    abstract member GetByDeleted: bool -> ChannelItem list
-    abstract member GetByCategoryId: int -> ChannelItem list
-    abstract member GetBySearchString: string -> ChannelItem list
+    abstract member GetByChannelId: int * int * int -> ChannelItem list
+    abstract member GetByGroupId: int * int * int -> ChannelItem list
+    abstract member GetByReadLater: bool * int * int -> ChannelItem list
+    abstract member GetByRead: bool * int * int -> ChannelItem list
+    abstract member GetByFavorite: bool * int * int -> ChannelItem list
+    abstract member GetByDeleted: bool * int * int -> ChannelItem list
+    abstract member GetByCategoryId: int * int * int -> ChannelItem list
+    abstract member GetBySearchString: string * int * int -> ChannelItem list
 
 type ChannelItems(connectionService: IConnectionService) =
+
     let selectSql (where: string) =
         let sql =
             "SELECT  Id, ChannelId, ItemId, Title, Link, ThumbnailUrl, Description, Content, 
             PublishingDate, IsRead, IsReadLater, IsFavorite, IsDeleted
             FROM ChannelItems
             WHERE {0}
-            ORDER BY PublishingDate DESC"
+            ORDER BY PublishingDate DESC
+            LIMIT @limit OFFSET @offset"
 
         System.String.Format(sql, where)
 
@@ -469,7 +471,7 @@ type ChannelItems(connectionService: IConnectionService) =
 
             cmd |> Db.exec
 
-        member this.GetByCategoryId(categoryId: int) =
+        member this.GetByCategoryId(categoryId: int, offset: int, limit: int) =
             use conn = connectionService.GetConnection()
 
             use cmd =
@@ -481,42 +483,55 @@ type ChannelItems(connectionService: IConnectionService) =
                     INNER JOIN ItemCategories IC 
                     ON CI.Id = IC.ChannelItemId
                     WHERE IC.CategoryId = @CategoryId
-                    ORDER BY CI.PublishingDate DESC"
-                |> Db.setParams [ "CategoryId", SqlType.Int categoryId ]
+                    ORDER BY CI.PublishingDate DESC
+                    LIMIT @limit OFFSET @offset"
+                |> Db.setParams
+                    [ "CategoryId", SqlType.Int categoryId
+                      "limit", SqlType.Int limit
+                      "offset", SqlType.Int offset ]
 
             cmd |> Db.query (fun reader -> getChannelItem reader) |> Seq.toList
 
-        member this.GetByChannelId(channelId: int) =
+        member this.GetByChannelId(channelId: int, offset: int, limit: int) =
             use conn = connectionService.GetConnection()
 
             use cmd =
                 conn
                 |> Db.newCommand (selectSql "ChannelId= @ChannelId AND IsRead = 0")
-                |> Db.setParams [ "ChannelId", SqlType.Int channelId ]
+                |> Db.setParams
+                    [ "ChannelId", SqlType.Int channelId
+                      "limit", SqlType.Int limit
+                      "offset", SqlType.Int offset ]
 
             cmd |> Db.query (fun reader -> getChannelItem reader) |> Seq.toList
 
-        member this.GetByDeleted(isDeleted: bool) =
+        member this.GetByDeleted(isDeleted: bool, offset: int, limit: int) =
             use conn = connectionService.GetConnection()
 
             use cmd =
                 conn
                 |> Db.newCommand (selectSql "IsDeleted= @IsDeleted")
-                |> Db.setParams [ "IsDeleted", SqlType.Boolean isDeleted ]
+                |> Db.setParams
+                    [ "IsDeleted", SqlType.Boolean isDeleted
+                      "limit", SqlType.Int limit
+                      "offset", SqlType.Int offset ]
 
             cmd |> Db.query (fun reader -> getChannelItem reader) |> Seq.toList
 
-        member this.GetByFavorite(isFavorite: bool) =
+        member this.GetByFavorite(isFavorite: bool, offset: int, limit: int) =
             use conn = connectionService.GetConnection()
 
             use cmd =
                 conn
                 |> Db.newCommand (selectSql "IsFavorite= @IsFavorite")
-                |> Db.setParams [ "IsFavorite", SqlType.Boolean isFavorite ]
+                |> Db.setParams
+                    [ "IsFavorite", SqlType.Boolean isFavorite
+                      "limit", SqlType.Int limit
+                      "offset", SqlType.Int offset ]
 
             cmd |> Db.query (fun reader -> getChannelItem reader) |> Seq.toList
 
-        member this.GetByGroupId(groupId: int) =
+        member this.GetByGroupId(groupId: int, offset: int, limit: int) =
             use conn = connectionService.GetConnection()
 
             use cmd =
@@ -528,28 +543,38 @@ type ChannelItems(connectionService: IConnectionService) =
                     INNER JOIN Channels C
                     ON CI.ChannelId = C.Id
                     WHERE C.ChannelsGroupId = @ChannelsGroupId  AND IsRead = 0
-                    ORDER BY CI.PublishingDate DESC"
-                |> Db.setParams [ "ChannelsGroupId", SqlType.Int groupId ]
+                    ORDER BY CI.PublishingDate DESC
+                    LIMIT @limit OFFSET @offset"
+                |> Db.setParams
+                    [ "ChannelsGroupId", SqlType.Int groupId
+                      "limit", SqlType.Int limit
+                      "offset", SqlType.Int offset ]
 
             cmd |> Db.query (fun reader -> getChannelItem reader) |> Seq.toList
 
-        member this.GetByRead(isRead: bool) =
+        member this.GetByRead(isRead: bool, offset: int, limit: int) =
             use conn = connectionService.GetConnection()
 
             use cmd =
                 conn
                 |> Db.newCommand (selectSql "IsRead= @IsRead")
-                |> Db.setParams [ "IsRead", SqlType.Boolean isRead ]
+                |> Db.setParams
+                    [ "IsRead", SqlType.Boolean isRead
+                      "limit", SqlType.Int limit
+                      "offset", SqlType.Int offset ]
 
             cmd |> Db.query (fun reader -> getChannelItem reader) |> Seq.toList
 
-        member this.GetByReadLater(isReadLater: bool) =
+        member this.GetByReadLater(isReadLater: bool, offset: int, limit: int) =
             use conn = connectionService.GetConnection()
 
             use cmd =
                 conn
                 |> Db.newCommand (selectSql "IsReadLater= @IsReadLater")
-                |> Db.setParams [ "IsReadLater", SqlType.Boolean isReadLater ]
+                |> Db.setParams
+                    [ "IsReadLater", SqlType.Boolean isReadLater
+                      "limit", SqlType.Int limit
+                      "offset", SqlType.Int offset ]
 
             cmd |> Db.query (fun reader -> getChannelItem reader) |> Seq.toList
 
@@ -628,7 +653,7 @@ type ChannelItems(connectionService: IConnectionService) =
 
             cmd |> Db.exec
 
-        member this.GetBySearchString(searchString: string) : ChannelItem list =
+        member this.GetBySearchString(searchString: string, offset: int, limit: int) =
             if searchString.Length < 3 || searchString.Length > 35 then
                 []
             else
@@ -638,7 +663,10 @@ type ChannelItems(connectionService: IConnectionService) =
                 use cmd =
                     conn
                     |> Db.newCommand (selectSql "Title LIKE @txt OR Content LIKE @txt OR Description LIKE @txt")
-                    |> Db.setParams [ "txt", SqlType.String $"%%{txt}%%" ]
+                    |> Db.setParams
+                        [ "txt", SqlType.String $"%%{txt}%%"
+                          "limit", SqlType.Int limit
+                          "offset", SqlType.Int offset ]
 
                 cmd |> Db.query (fun reader -> getChannelItem reader) |> Seq.toList
 

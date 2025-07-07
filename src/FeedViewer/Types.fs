@@ -91,6 +91,7 @@ module Types =
         member store.CountItems = store.CreateCVal(nameof store.CountItems, 0)
         member store.SearchString = store.CreateCVal(nameof store.SearchString, "")
         member store.SearchEnabled = store.CreateCVal(nameof store.SearchEnabled, false)
+        member store.Limit = store.CreateCVal(nameof store.Limit, 50)
 
     type DialogData<'T>(data: 'T, localizer: IStringLocalizer<SharedResources>) =
         member val Data = data with get, set
