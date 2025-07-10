@@ -48,15 +48,15 @@ module Navmenu =
                             services.ChannelReader.ReadAllChannelsAsync(),
                             (fun _ ->
                                 match store.CurrentChannelId.Value with
-                                | AllUnread -> services.Navigation.NavigateTo("/channel/all")
-                                | ReadLater -> services.Navigation.NavigateTo("/channel/readlater")
-                                | Starred -> services.Navigation.NavigateTo("/channel/starred")
-                                | RecentlyRead -> services.Navigation.NavigateTo("/channel/recentlyread")
-                                | ByGroupId groupId -> services.Navigation.NavigateTo($"/group/{groupId}")
-                                | ByChannelId channelId -> services.Navigation.NavigateTo($"/channel/{channelId}")
+                                | AllUnread -> services.Navigation.NavigateTo "/channel/all"
+                                | ReadLater -> services.Navigation.NavigateTo "/channel/readlater"
+                                | Starred -> services.Navigation.NavigateTo "/channel/starred"
+                                | RecentlyRead -> services.Navigation.NavigateTo "/channel/recentlyread"
+                                | ByGroupId groupId -> services.Navigation.NavigateTo $"/group/{groupId}"
+                                | ByChannelId channelId -> services.Navigation.NavigateTo $"/channel/{channelId}"
                                 | ByCategoryId categoryId ->
-                                    services.Navigation.NavigateTo($"/category/{categoryId}")
-                                | BySearchString txt -> services.Navigation.NavigateTo($"/search/{txt}")),
+                                    services.Navigation.NavigateTo $"/category/{categoryId}"
+                                | BySearchString txt -> services.Navigation.NavigateTo $"/search/{txt}"),
                             (fun ex -> printfn "%A" ex),
                             (fun _ -> ())
                         )

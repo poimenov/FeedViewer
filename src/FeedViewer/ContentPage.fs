@@ -9,48 +9,6 @@ module ContentPage =
     open Fun.Blazor
     open FeedViewer
 
-    type NextPrevLogic(store: IShareStore, jsRuntime: IJSRuntime) =
-        let Next (element: ChannelItem, list: ChannelItem list) =
-            list
-            |> List.tryFindIndex ((=) element)
-            |> Option.bind (fun i -> if i < List.length list - 1 then Some list.[i + 1] else None)
-
-        let Previous (element: ChannelItem, list: ChannelItem list) =
-            list
-            |> List.tryFindIndex ((=) element)
-            |> Option.bind (fun i -> if 0 < i then Some list.[i - 1] else None)
-
-        let getItem f chItems chItem =
-            match chItems with
-            | NotLoadedFeedItemsList -> None
-            | LoadedFeedItemsList items ->
-                match chItem with
-                | NotSelected -> None
-                | Selected item -> f (item, items)
-
-        let isDisabled f chItems chItem =
-            match getItem f chItems chItem with
-            | None -> true
-            | Some _ -> false
-
-        let moveTo f chItems chItem =
-            match getItem f chItems chItem with
-            | None -> ()
-            | Some item ->
-                store.SelectedChannelItem.Publish(SelectedChannelItem.Selected item)
-                jsRuntime.InvokeAsync("ScrollToSelectedItem") |> ignore
-
-        member this.MoveToNext(chItems: Types.ChannelItems, chItem: SelectedChannelItem) = moveTo Next chItems chItem
-
-        member this.MoveToPrevious(chItems: Types.ChannelItems, chItem: SelectedChannelItem) =
-            moveTo Previous chItems chItem
-
-        member this.IsNextDisabled(chItems: Types.ChannelItems, chItem: SelectedChannelItem) =
-            isDisabled Next chItems chItem
-
-        member this.IsPreviousDisabled(chItems: Types.ChannelItems, chItem: SelectedChannelItem) =
-            isDisabled Previous chItems chItem
-
     let load (id: ChannelId, isInitial: bool, store: IShareStore, channelItems: IChannelItems) =
         let _offset =
             if isInitial then
@@ -141,17 +99,17 @@ module ContentPage =
             match id with
             | BySearchString _ -> ()
             | _ ->
-                store.SearchString.Publish("")
+                store.SearchString.Publish ""
                 store.SearchEnabled.Publish false
 
             match store.FeedItems.Value with
-            | ChannelItems.LoadedFeedItemsList items ->
+            | LoadedFeedItemsList items ->
                 if items.Count() > 0 then
-                    let first = items |> Seq.head |> SelectedChannelItem.Selected
+                    let first = items |> Seq.head |> Selected
                     store.SelectedChannelItem.Publish first
                 else
-                    store.SelectedChannelItem.Publish(SelectedChannelItem.NotSelected)
-            | NotLoadedFeedItemsList -> store.SelectedChannelItem.Publish SelectedChannelItem.NotSelected
+                    store.SelectedChannelItem.Publish NotSelected
+            | NotLoadedFeedItemsList -> store.SelectedChannelItem.Publish NotSelected
 
             let title: string =
                 match id with
@@ -570,16 +528,10 @@ module ContentPage =
                                         div {
                                             class' (getSelectedClass item)
 
-                                            style' (
-                                                if item.IsRead then
-                                                    "color: var(--neutral-foreground-hover);"
-                                                else
-                                                    "color: var(--neutral-foreground-rest);"
-                                            )
+                                            style'
+                                                $"""color: var(--neutral-foreground-{if item.IsRead then "hover" else "rest"});"""
 
-                                            onclick (fun _ ->
-                                                let selected = SelectedChannelItem.Selected item
-                                                store.SelectedChannelItem.Publish selected)
+                                            onclick (fun _ -> setSelectedItem (Selected item))
 
                                             div {
                                                 class' "channel-item-title"
@@ -671,16 +623,16 @@ module ContentPage =
                                     FluentFlipper'' {
                                         style' "position: absolute; top: 50%;left:10px;"
                                         Direction FlipperDirection.Previous
-                                        disabled (navLogic.IsPreviousDisabled(store.FeedItems.Value, selectedItem))
+                                        disabled navLogic.IsPreviousDisabled
 
-                                        onclick (fun _ -> navLogic.MoveToPrevious(store.FeedItems.Value, selectedItem))
+                                        onclick (fun _ -> navLogic.MoveToPrevious)
                                     }
 
                                     FluentFlipper'' {
                                         style' "position: absolute; top: 50%;right:10px;"
                                         Direction FlipperDirection.Next
-                                        disabled (navLogic.IsNextDisabled(store.FeedItems.Value, selectedItem))
-                                        onclick (fun _ -> navLogic.MoveToNext(store.FeedItems.Value, selectedItem))
+                                        disabled navLogic.IsNextDisabled
+                                        onclick (fun _ -> navLogic.MoveToNext)
                                     }
 
                                     div {

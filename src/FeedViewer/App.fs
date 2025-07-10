@@ -115,8 +115,8 @@ module App =
                                             services.ChannelReader.ReadAllChannelsAsync(),
                                             (fun _ ->
                                                 //refresh navmenu
-                                                store.IsMenuOpen.Publish(false)
-                                                store.IsMenuOpen.Publish(true)
+                                                store.IsMenuOpen.Publish false
+                                                store.IsMenuOpen.Publish true
                                                 //navigate to all channels
                                                 services.Navigation.NavigateTo("/channel/all")),
                                             (fun ex -> printfn "%A" ex),
