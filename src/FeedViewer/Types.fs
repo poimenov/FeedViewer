@@ -60,25 +60,25 @@ module Types =
             store.CreateCVal(nameof store.ExpandedNavGroupCount, 0)
 
         member store.SelectedChannelItem =
-            store.CreateCVal(nameof store.SelectedChannelItem, SelectedChannelItem.NotSelected)
+            store.CreateCVal(nameof store.SelectedChannelItem, NotSelected)
 
         member store.FeedGroups =
-            store.CreateCVal(nameof store.FeedGroups, FeedGroups.NotLoadedChannelGroupList)
+            store.CreateCVal(nameof store.FeedGroups, NotLoadedChannelGroupList)
 
         member store.SelectedFeedGroup =
-            store.CreateCVal(nameof store.SelectedFeedGroup, SelectedFeedGroup.NotSelectedGroup)
+            store.CreateCVal(nameof store.SelectedFeedGroup, NotSelectedGroup)
 
         member store.FeedChannels =
-            store.CreateCVal(nameof store.FeedChannels, FeedChannels.NotLoadedChannelsList)
+            store.CreateCVal(nameof store.FeedChannels, NotLoadedChannelsList)
 
         member store.SelectedFeedChannel =
-            store.CreateCVal(nameof store.SelectedFeedChannel, SelectedFeedChannel.NotSelectedChannel)
+            store.CreateCVal(nameof store.SelectedFeedChannel, NotSelectedChannel)
 
         member store.FeedItems =
-            store.CreateCVal(nameof store.FeedItems, ChannelItems.NotLoadedFeedItemsList)
+            store.CreateCVal(nameof store.FeedItems, NotLoadedFeedItemsList)
 
         member store.CurrentChannelId =
-            store.CreateCVal(nameof store.CurrentChannelId, ChannelId.AllUnread)
+            store.CreateCVal(nameof store.CurrentChannelId, AllUnread)
 
         member store.CurrentIsRead = store.CreateCVal(nameof store.CurrentIsRead, false)
 
@@ -135,7 +135,7 @@ module Types =
                     FluentButton'' {
                         Appearance Appearance.Accent
                         disabled (String.IsNullOrWhiteSpace this.Content.Data.Name)
-                        OnClick(fun _ -> task { this.Dialog.CloseAsync(this.Content) |> Async.AwaitTask |> ignore })
+                        OnClick(fun _ -> task { this.Dialog.CloseAsync this.Content |> Async.AwaitTask |> ignore })
                         string (this.Content.Localizer["Save"])
                     }
 
@@ -222,7 +222,7 @@ module Types =
                     FluentButton'' {
                         Appearance Appearance.Accent
                         disabled (String.IsNullOrWhiteSpace this.Content.Data.Channel.Title)
-                        OnClick(fun _ -> task { this.Dialog.CloseAsync(this.Content) |> Async.AwaitTask |> ignore })
+                        OnClick(fun _ -> task { this.Dialog.CloseAsync this.Content |> Async.AwaitTask |> ignore })
                         string (this.Content.Localizer["Save"])
                     }
 
@@ -241,8 +241,8 @@ module Types =
             if String.IsNullOrWhiteSpace input then
                 false
             else
-                match System.Uri.TryCreate(input, System.UriKind.Absolute) with
-                | true, uri -> (uri.Scheme = "http" || uri.Scheme = "https")
+                match System.Uri.TryCreate(input, UriKind.Absolute) with
+                | true, uri -> uri.Scheme = "http" || uri.Scheme = "https"
                 | false, _ -> false
 
         member val IsValid = false with get, set
@@ -289,7 +289,7 @@ module Types =
                     FluentButton'' {
                         Appearance Appearance.Accent
                         disabled (not this.IsValid)
-                        OnClick(fun _ -> task { this.Dialog.CloseAsync(this.Content) |> Async.AwaitTask |> ignore })
+                        OnClick(fun _ -> task { this.Dialog.CloseAsync this.Content |> Async.AwaitTask |> ignore })
                         string (this.Content.Localizer["Save"])
                     }
 
@@ -330,7 +330,7 @@ module Types =
                         let newValue = not this.Value
                         this.Value <- newValue
                         this.StateHasChanged()
-                        this.OnValueChanged.InvokeAsync(newValue) |> ignore)
+                        this.OnValueChanged.InvokeAsync newValue |> ignore)
                 }
             }
 

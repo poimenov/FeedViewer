@@ -15,7 +15,7 @@ module ContentPage =
                 0
             else
                 match store.FeedItems.Value with
-                | ChannelItems.LoadedFeedItemsList items -> items.Count()
+                | LoadedFeedItemsList items -> items.Count()
                 | NotLoadedFeedItemsList -> 0
 
         let _limit = store.Limit.Value
@@ -32,15 +32,15 @@ module ContentPage =
             | BySearchString searchString -> channelItems.GetBySearchString(searchString, _offset, _limit)
 
         if isInitial then
-            store.FeedItems.Publish(ChannelItems.LoadedFeedItemsList newItems)
+            store.FeedItems.Publish(LoadedFeedItemsList newItems)
         elif newItems.Count() > 0 then
             match store.FeedItems.Value with
-            | ChannelItems.LoadedFeedItemsList items ->
+            | LoadedFeedItemsList items ->
                 let updatedItems =
                     items @ newItems |> List.sortByDescending (fun x -> x.PublishingDate)
 
-                store.FeedItems.Publish(ChannelItems.LoadedFeedItemsList updatedItems)
-            | NotLoadedFeedItemsList -> store.FeedItems.Publish(ChannelItems.LoadedFeedItemsList(newItems))
+                store.FeedItems.Publish(LoadedFeedItemsList updatedItems)
+            | NotLoadedFeedItemsList -> store.FeedItems.Publish(LoadedFeedItemsList newItems)
         else
             ()
 
@@ -69,14 +69,14 @@ module ContentPage =
     let openChannelLink (id: ChannelId, dataAccess: IDataAccess, linkOpeningService: ILinkOpeningService) =
         match id with
         | ByChannelId channelId ->
-            match dataAccess.Channels.Get(channelId) with
+            match dataAccess.Channels.Get channelId with
             | Some channel ->
                 let url =
                     match channel.Link with
                     | Some link -> link
                     | None -> channel.Url
 
-                linkOpeningService.OpenUrl(url) |> ignore
+                linkOpeningService.OpenUrl url |> ignore
             | _ -> ignore ()
         | _ -> ignore ()
 
@@ -196,7 +196,7 @@ module ContentPage =
 
                                     onkeydown (fun e ->
                                         if e.Key = "Enter" && searchEnabled then
-                                            services.Navigation.NavigateTo($"/search/{searchString}"))
+                                            services.Navigation.NavigateTo $"/search/{searchString}")
 
                                     Immediate true
                                     Value searchString
@@ -256,7 +256,7 @@ module ContentPage =
 
                             match selectedItem with
                             | NotSelected -> ()
-                            | SelectedChannelItem.Selected selItem ->
+                            | Selected selItem ->
                                 let link =
                                     match selItem.Link with
                                     | Some link -> link
@@ -267,9 +267,9 @@ module ContentPage =
                                 let setRead (chItem: ChannelItem, read: bool) =
                                     chItem.IsRead <- read
                                     dataAccess.ChannelItems.SetRead(chItem.Id, read)
-                                    store.CurrentIsRead.Publish(read)
+                                    store.CurrentIsRead.Publish read
                                     store.CountItems.Publish(getCount (currentChannelId, dataAccess))
-                                    setSelectedItem (SelectedChannelItem.Selected chItem)
+                                    setSelectedItem (Selected chItem)
 
                                 setRead (selItem, true)
                                 store.CurrentIsReadLater.Publish selItem.IsReadLater
@@ -348,7 +348,7 @@ module ContentPage =
                                             item.IsReadLater <- b
                                             dataAccess.ChannelItems.SetReadLater(item.Id, b)
                                             store.CurrentIsReadLater.Publish(b)
-                                            setSelectedItem (SelectedChannelItem.Selected item))
+                                            setSelectedItem (Selected item))
                                     )
 
                                     MyCheckBox.Create(
@@ -361,7 +361,7 @@ module ContentPage =
                                             item.IsFavorite <- b
                                             dataAccess.ChannelItems.SetFavorite(item.Id, b)
                                             store.CurrentIsFavorite.Publish b
-                                            setSelectedItem (SelectedChannelItem.Selected item))
+                                            setSelectedItem (Selected item))
                                     )
 
                                     FluentButton'' {
@@ -386,13 +386,11 @@ module ContentPage =
                                                 setFeedItems (LoadedFeedItemsList updatedItems)
 
                                                 match updatedItems |> List.tryItem index with
-                                                | Some nextItem ->
-                                                    setSelectedItem (SelectedChannelItem.Selected nextItem)
+                                                | Some nextItem -> setSelectedItem (Selected nextItem)
                                                 | None ->
                                                     if updatedItems.Length > 0 && index > 0 then
                                                         match updatedItems |> List.tryItem (index - 1) with
-                                                        | Some prevItem ->
-                                                            setSelectedItem (SelectedChannelItem.Selected prevItem)
+                                                        | Some prevItem -> setSelectedItem (Selected prevItem)
                                                         | None -> setSelectedItem NotSelected
                                                     else
                                                         setSelectedItem NotSelected
@@ -606,7 +604,7 @@ module ContentPage =
                                     let txt =
                                         match selectedItem with
                                         | NotSelected -> ""
-                                        | SelectedChannelItem.Selected selItem ->
+                                        | Selected selItem ->
                                             match selItem.Content with
                                             | None ->
                                                 match selItem.Description with

@@ -27,11 +27,11 @@ type IPlatformService =
 type PlatformService() =
     interface IPlatformService with
         member this.GetPlatform() =
-            if RuntimeInformation.IsOSPlatform(OSPlatform.Windows) then
+            if RuntimeInformation.IsOSPlatform OSPlatform.Windows then
                 Windows
-            elif RuntimeInformation.IsOSPlatform(OSPlatform.Linux) then
+            elif RuntimeInformation.IsOSPlatform OSPlatform.Linux then
                 Linux
-            elif RuntimeInformation.IsOSPlatform(OSPlatform.OSX) then
+            elif RuntimeInformation.IsOSPlatform OSPlatform.OSX then
                 MacOS
             else
                 Unknown
@@ -71,7 +71,7 @@ type IExportImportService =
 type ExportImportService(channelGroups: IChannelGroups, channels: IChannels) =
     interface IExportImportService with
         member this.Export(filePath: string) =
-            if String.IsNullOrEmpty(filePath) || Path.GetExtension(filePath) <> ".opml" then
+            if String.IsNullOrEmpty filePath || Path.GetExtension filePath <> ".opml" then
                 ()
             else
                 let getOutline (channel: Channel) =
@@ -85,9 +85,9 @@ type ExportImportService(channelGroups: IChannelGroups, channels: IChannels) =
                     )
 
                 let getGroupOutlines (groupId: int) =
-                    channels.GetByGroupId(Some(groupId)) |> List.map (fun c -> getOutline c)
+                    channels.GetByGroupId(Some groupId) |> List.map (fun c -> getOutline c)
 
-                let getOutlines = channels.GetByGroupId(None) |> List.map (fun c -> getOutline c)
+                let getOutlines = channels.GetByGroupId None |> List.map (fun c -> getOutline c)
 
                 let getOutlineGroups =
                     channelGroups.GetAll()
@@ -105,44 +105,44 @@ type ExportImportService(channelGroups: IChannelGroups, channels: IChannels) =
                 let doc =
                     new XDocument(new XElement("opml", new XAttribute("version", "1.0"), head, body))
 
-                doc.Save(filePath)
+                doc.Save filePath
 
         member this.Import(filePath: string) =
             if
-                String.IsNullOrEmpty(filePath)
-                || Path.GetExtension(filePath) <> ".opml"
-                || not (File.Exists(filePath))
+                String.IsNullOrEmpty filePath
+                || Path.GetExtension filePath <> ".opml"
+                || not (File.Exists filePath)
             then
                 ()
             else
-                let doc = XDocument.Load(filePath)
+                let doc = XDocument.Load filePath
 
                 let importChannel (groupId: int option, channel: XElement) =
                     channels.Create(
                         new Channel(
                             id = 0,
                             groupId = groupId,
-                            title = channel.Attribute(XName.Get("text")).Value,
-                            description = Some(channel.Attribute(XName.Get("text")).Value),
-                            link = Some(channel.Attribute(XName.Get("htmlUrl")).Value),
-                            url = channel.Attribute(XName.Get("xmlUrl")).Value,
+                            title = channel.Attribute(XName.Get "text").Value,
+                            description = Some(channel.Attribute(XName.Get "text").Value),
+                            link = Some(channel.Attribute(XName.Get "htmlUrl").Value),
+                            url = channel.Attribute(XName.Get "xmlUrl").Value,
                             imageUrl = None,
                             language = None
                         )
                     )
 
                 doc
-                    .Element(XName.Get("opml"))
-                    .Element(XName.Get("body"))
-                    .Elements(XName.Get("outline"))
+                    .Element(XName.Get "opml")
+                    .Element(XName.Get "body")
+                    .Elements(XName.Get "outline")
                 |> Seq.filter (fun e -> e.Attributes() |> Seq.exists (fun a -> a.Name.LocalName = "xmlUrl") |> not)
                 |> Seq.iter (fun group ->
                     let groupId =
-                        channelGroups.Create(new ChannelGroup(id = 0, name = group.Attribute(XName.Get("text")).Value))
+                        channelGroups.Create(new ChannelGroup(id = 0, name = group.Attribute(XName.Get "text").Value))
 
                     group.Elements(XName.Get("outline"))
-                    |> Seq.filter (fun e -> e.Attribute(XName.Get("type")).Value = "rss")
-                    |> Seq.iter (fun channel -> importChannel (Some(groupId), channel) |> ignore))
+                    |> Seq.filter (fun e -> e.Attribute(XName.Get "type").Value = "rss")
+                    |> Seq.iter (fun channel -> importChannel (Some groupId, channel) |> ignore))
 
                 doc
                     .Element(XName.Get("opml"))
@@ -231,7 +231,7 @@ type HttpHandler() =
                     let doc = XDocument.Parse response
                     return Some(FeedReader.ReadFromString(doc.ToString()))
                 with ex ->
-                    Debug.WriteLine($"Error parsing feed from {url}: {ex.Message}")
+                    Debug.WriteLine $"Error parsing feed from {url}: {ex.Message}"
                     return None
             }
             |> Async.StartAsTask
@@ -251,8 +251,8 @@ type IconDownloader(http: IHttpHandler, logger: ILogger<IconDownloader>) =
                     return ()
 
                 try
-                    if not (Directory.Exists(iconsDirectoryPath)) then
-                        Directory.CreateDirectory(iconsDirectoryPath) |> ignore
+                    if not (Directory.Exists iconsDirectoryPath) then
+                        Directory.CreateDirectory iconsDirectoryPath |> ignore
 
                     match siteUri with
                     | Some uri when Directory.GetFiles(iconsDirectoryPath, $"{uri.Host}.*").Length = 0 ->
@@ -276,7 +276,7 @@ type IconDownloader(http: IHttpHandler, logger: ILogger<IconDownloader>) =
                                     (x.HasAttribute("rel", "icon")
                                      || x.HasAttribute("rel", "shortcut icon")
                                      || x.HasAttribute("rel", "apple-touch-icon"))
-                                    && (x.AttributeValue("href") |> allowedHref))
+                                    && x.AttributeValue "href" |> allowedHref)
                                 |> Seq.toArray
 
                             if links.Length > 0 then
@@ -284,7 +284,7 @@ type IconDownloader(http: IHttpHandler, logger: ILogger<IconDownloader>) =
                                     (this :> IIconDownloader)
                                         .SaveIconAsync(
                                             iconName,
-                                            links[0].AttributeValue("href"),
+                                            links[0].AttributeValue "href",
                                             Some(uri),
                                             iconsDirectoryPath
                                         )
@@ -350,7 +350,7 @@ type IconDownloader(http: IHttpHandler, logger: ILogger<IconDownloader>) =
                     | None -> Uri(url)
 
                 try
-                    let! data = http.GetByteArrayAsync(uriToDownload.AbsoluteUri) |> Async.AwaitTask
+                    let! data = http.GetByteArrayAsync uriToDownload.AbsoluteUri |> Async.AwaitTask
 
                     if data.Length > 0 then
                         let ext = (this :> IIconDownloader).GetIconExtension data
@@ -466,9 +466,7 @@ type ChannelReader
                         lock locker (fun () ->
                             if not (String.IsNullOrEmpty feed.Title) then
                                 channel.Title <-
-                                    if
-                                        Uri(channel.Url).Host = channel.Title || String.IsNullOrEmpty(channel.Title)
-                                    then
+                                    if Uri(channel.Url).Host = channel.Title || String.IsNullOrEmpty channel.Title then
                                         feed.Title
                                     else
                                         channel.Title
@@ -542,7 +540,7 @@ type ChannelReader
                     (this :> IChannelReader).ReadChannelAsync(id, iconsDirectoryPath)
 
                 return!
-                    channels.GetByGroupId(Some(groupId))
+                    channels.GetByGroupId(Some groupId)
                     |> Seq.map (fun c -> c.Id)
                     |> Seq.map readChannel
                     |> Async.Parallel

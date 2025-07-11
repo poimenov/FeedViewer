@@ -22,7 +22,7 @@ type IConnectionService =
 type ConnectionService() =
     interface IConnectionService with
         member this.GetConnection() =
-            new SqliteConnection($"Data Source={AppSettings.DataBasePath}") :> IDbConnection
+            new SqliteConnection $"Data Source={AppSettings.DataBasePath}" :> IDbConnection
 
 type IDataBase =
     abstract member CreateDatabaseIfNotExists: unit -> unit
@@ -30,10 +30,10 @@ type IDataBase =
 type DataBase(connectionService: IConnectionService, logger: ILogger<DataBase>) =
     interface IDataBase with
         member this.CreateDatabaseIfNotExists() =
-            if not (Directory.Exists(AppSettings.AppDataPath)) then
-                Directory.CreateDirectory(AppSettings.AppDataPath) |> ignore
+            if not (Directory.Exists AppSettings.AppDataPath) then
+                Directory.CreateDirectory AppSettings.AppDataPath |> ignore
 
-            if not (File.Exists(AppSettings.DataBasePath)) then
+            if not (File.Exists AppSettings.DataBasePath) then
                 use conn = connectionService.GetConnection()
                 use tran = conn.TryBeginTransaction()
 
@@ -97,7 +97,7 @@ type ChannelGroups(connectionService: IConnectionService) =
             use cmd = conn |> Db.newCommand "SELECT Id, Name FROM ChannelsGroups ORDER BY Name;"
 
             cmd
-            |> Db.query (fun reader -> ChannelGroup(reader.ReadInt32("Id"), reader.ReadString("Name")))
+            |> Db.query (fun reader -> ChannelGroup(reader.ReadInt32 "Id", reader.ReadString "Name"))
             |> List.ofSeq
 
         member this.GetById(id) =
@@ -109,7 +109,7 @@ type ChannelGroups(connectionService: IConnectionService) =
                 |> Db.setParams [ "Id", SqlType.Int id ]
 
             cmd
-            |> Db.query (fun reader -> ChannelGroup(reader.ReadInt32("Id"), reader.ReadString("Name")))
+            |> Db.query (fun reader -> ChannelGroup(reader.ReadInt32 "Id", reader.ReadString "Name"))
             |> List.tryHead
 
         member this.GetByName(name) =
@@ -121,7 +121,7 @@ type ChannelGroups(connectionService: IConnectionService) =
                 |> Db.setParams [ "Name", SqlType.String name ]
 
             cmd
-            |> Db.query (fun reader -> ChannelGroup(reader.ReadInt32("Id"), reader.ReadString("Name")))
+            |> Db.query (fun reader -> ChannelGroup(reader.ReadInt32 "Id", reader.ReadString "Name"))
             |> List.tryHead
 
         member this.Update(channelGroup) =
@@ -167,14 +167,14 @@ type Channels(connectionService: IConnectionService) =
 
     let getChannel (reader: IDataReader) =
         Channel(
-            reader.ReadInt32("Id"),
-            reader.ReadInt32Option("ChannelsGroupId"),
-            reader.ReadString("Title"),
-            reader.ReadStringOption("Description"),
-            reader.ReadStringOption("Link"),
-            reader.ReadString("Url"),
-            reader.ReadStringOption("ImageUrl"),
-            reader.ReadStringOption("Language")
+            reader.ReadInt32 "Id",
+            reader.ReadInt32Option "ChannelsGroupId",
+            reader.ReadString "Title",
+            reader.ReadStringOption "Description",
+            reader.ReadStringOption "Link",
+            reader.ReadString "Url",
+            reader.ReadStringOption "ImageUrl",
+            reader.ReadStringOption "Language"
         )
 
     interface IChannels with
@@ -331,9 +331,8 @@ type Channels(connectionService: IConnectionService) =
 
             use cmd =
                 conn
-                |> Db.newCommand (
+                |> Db.newCommand
                     "SELECT COUNT(*) FROM ChannelItems WHERE Title LIKE @txt OR Content LIKE @txt OR Description LIKE @txt"
-                )
                 |> Db.setParams [ "txt", SqlType.String $"%%{txt}%%" ]
 
             cmd |> Db.scalar Convert.ToInt32
@@ -372,19 +371,19 @@ type ChannelItems(connectionService: IConnectionService) =
 
     let getChannelItem (reader: IDataReader) =
         ChannelItem(
-            reader.ReadInt64("Id"),
-            reader.ReadInt32("ChannelId"),
-            reader.ReadString("ItemId"),
-            reader.ReadString("Title"),
-            reader.ReadStringOption("Link"),
-            reader.ReadStringOption("ThumbnailUrl"),
-            reader.ReadStringOption("Description"),
-            reader.ReadStringOption("Content"),
-            reader.ReadDateTimeOption("PublishingDate"),
-            reader.ReadBoolean("IsRead"),
-            reader.ReadBoolean("IsDeleted"),
-            reader.ReadBoolean("IsFavorite"),
-            reader.ReadBoolean("IsReadLater"),
+            reader.ReadInt64 "Id",
+            reader.ReadInt32 "ChannelId",
+            reader.ReadString "ItemId",
+            reader.ReadString "Title",
+            reader.ReadStringOption "Link",
+            reader.ReadStringOption "ThumbnailUrl",
+            reader.ReadStringOption "Description",
+            reader.ReadStringOption "Content",
+            reader.ReadDateTimeOption "PublishingDate",
+            reader.ReadBoolean "IsRead",
+            reader.ReadBoolean "IsDeleted",
+            reader.ReadBoolean "IsFavorite",
+            reader.ReadBoolean "IsReadLater",
             None
         )
 
@@ -403,7 +402,7 @@ type ChannelItems(connectionService: IConnectionService) =
                     [ "ChannelId", SqlType.Int channelItem.ChannelId
                       "ItemId",
                       SqlType.String(
-                          if String.IsNullOrWhiteSpace(channelItem.ItemId) then
+                          if String.IsNullOrWhiteSpace channelItem.ItemId then
                               defaultArg channelItem.Link channelItem.Title
                           else
                               channelItem.ItemId
@@ -678,7 +677,7 @@ type ICategories =
 
 type Categories(connectionService: IConnectionService) =
     let getCategory (reader: IDataReader) =
-        Category(reader.ReadInt32("Id"), reader.ReadString("Name"))
+        Category(reader.ReadInt32 "Id", reader.ReadString "Name")
 
     interface ICategories with
         member this.Get(categoryId: int) =

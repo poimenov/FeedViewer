@@ -59,7 +59,7 @@ module App =
 
                                 OnLoaded(fun args ->
                                     if args.IsDark then
-                                        store.Theme.Publish(DesignThemeModes.Dark))
+                                        store.Theme.Publish DesignThemeModes.Dark)
                             }
 
                             FluentButton'' {
@@ -67,7 +67,7 @@ module App =
                                 Appearance Appearance.Accent
                                 IconStart(Icons.Regular.Size20.Settings())
                                 title' (string (services.Localizer["Settings"]))
-                                OnClick(fun _ -> store.IsSettingsOpen.Publish(not))
+                                OnClick(fun _ -> store.IsSettingsOpen.Publish not)
                             }
 
                             FluentMenu'' {
@@ -118,7 +118,7 @@ module App =
                                                 store.IsMenuOpen.Publish false
                                                 store.IsMenuOpen.Publish true
                                                 //navigate to all channels
-                                                services.Navigation.NavigateTo("/channel/all")),
+                                                services.Navigation.NavigateTo "/channel/all"),
                                             (fun ex -> printfn "%A" ex),
                                             (fun _ -> ())
                                         ))
@@ -162,7 +162,7 @@ module App =
                                 }
 
                                 FluentMenuItem'' {
-                                    OnClick(fun _ -> services.Navigation.NavigateTo("/feeds"))
+                                    OnClick(fun _ -> services.Navigation.NavigateTo "/feeds")
                                     string (services.Localizer["OrganizeFeeds"])
 
                                     span {
@@ -185,7 +185,7 @@ module App =
             hook.AddFirstAfterRenderTask(fun _ ->
                 task {
 
-                    let losObjRef = DotNetObjectReference.Create(OpenLinkProvider(los))
+                    let losObjRef = DotNetObjectReference.Create(OpenLinkProvider los)
                     jsRuntime.InvokeAsync("SetOpenLinkProvider", losObjRef) |> ignore
                 })
 

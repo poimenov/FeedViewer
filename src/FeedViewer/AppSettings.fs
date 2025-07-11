@@ -17,7 +17,7 @@ type public AppSettings() =
 
     static member AppDataPath =
         Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            Environment.GetFolderPath Environment.SpecialFolder.LocalApplicationData,
             AppSettings.ApplicationName
         )
 
@@ -38,9 +38,7 @@ type public AppSettings() =
     static member CreateDatabaseScript =
         use stream =
             new StreamReader(
-                Assembly
-                    .GetExecutingAssembly()
-                    .GetManifestResourceStream(AppSettings.CreateDatabaseScriptName)
+                Assembly.GetExecutingAssembly().GetManifestResourceStream AppSettings.CreateDatabaseScriptName
             )
 
         stream.ReadToEnd()

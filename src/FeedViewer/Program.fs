@@ -36,8 +36,8 @@ let main args =
     builder.Services.AddLocalization(fun options -> options.ResourcesPath <- "Resources")
     |> ignore
 
-    builder.Services.AddSingleton<IConfiguration>(configuration) |> ignore
-    builder.Services.Configure<AppSettings>(configuration) |> ignore
+    builder.Services.AddSingleton<IConfiguration> configuration |> ignore
+    builder.Services.Configure<AppSettings> configuration |> ignore
     builder.Services.AddSingleton<IPlatformService, PlatformService>() |> ignore
     builder.Services.AddSingleton<IProcessService, ProcessService>() |> ignore
 
@@ -70,10 +70,10 @@ let main args =
     FileInfo AppSettings.LogConfigPath |> XmlConfigurator.Configure |> ignore
 
     let logger = application.Services.GetRequiredService<ILogger<_>>()
-    logger.LogInformation("Starting application")
+    logger.LogInformation "Starting application"
     let settings = application.Services.GetRequiredService<IOptions<AppSettings>>()
-    CultureInfo.DefaultThreadCurrentCulture <- CultureInfo.GetCultureInfo(settings.Value.CultureName)
-    CultureInfo.DefaultThreadCurrentUICulture <- CultureInfo.GetCultureInfo(settings.Value.CultureName)
+    CultureInfo.DefaultThreadCurrentCulture <- CultureInfo.GetCultureInfo settings.Value.CultureName
+    CultureInfo.DefaultThreadCurrentUICulture <- CultureInfo.GetCultureInfo settings.Value.CultureName
 
     // customize window
     application.MainWindow

@@ -23,10 +23,10 @@ module Navmenu =
     let getIcon (src: String, size: IconSize) =
         Icon(String.Empty, IconVariant.Regular, size, $"<img src=\"{src}\"  style=\"width: 100%%;\" />")
 
-    let getChannelIcon (channel: Channel option, size: IconSize) = getIcon (getIconPath (channel), size)
+    let getChannelIcon (channel: Channel option, size: IconSize) = getIcon (getIconPath channel, size)
 
     let getChannelIcon20 (channel: Channel option) =
-        getIcon (getIconPath (channel), IconSize.Size20)
+        getIcon (getIconPath channel, IconSize.Size20)
 
     let getNavLinks (channels: list<Channel>) =
         channels
@@ -35,7 +35,7 @@ module Navmenu =
                 Href $"/channel/{c.Id}"
                 Tooltip c.Title
                 Match NavLinkMatch.Prefix
-                Icon(getChannelIcon20 (Some(c)))
+                Icon(getChannelIcon20 (Some c))
                 c.Title
             })
 
@@ -54,8 +54,7 @@ module Navmenu =
                                 | RecentlyRead -> services.Navigation.NavigateTo "/channel/recentlyread"
                                 | ByGroupId groupId -> services.Navigation.NavigateTo $"/group/{groupId}"
                                 | ByChannelId channelId -> services.Navigation.NavigateTo $"/channel/{channelId}"
-                                | ByCategoryId categoryId ->
-                                    services.Navigation.NavigateTo $"/category/{categoryId}"
+                                | ByCategoryId categoryId -> services.Navigation.NavigateTo $"/category/{categoryId}"
                                 | BySearchString txt -> services.Navigation.NavigateTo $"/search/{txt}"),
                             (fun ex -> printfn "%A" ex),
                             (fun _ -> ())
@@ -130,10 +129,10 @@ module Navmenu =
                                             else
                                                 setExpGroupsCount (expGroupsCount - 1))
 
-                                        yield! dataAccess.Channels.GetByGroupId(Some(g.Id)) |> getNavLinks
+                                        yield! dataAccess.Channels.GetByGroupId(Some g.Id) |> getNavLinks
                                     })
 
-                            yield! dataAccess.Channels.GetByGroupId(None) |> getNavLinks
+                            yield! dataAccess.Channels.GetByGroupId None |> getNavLinks
                         }
                     }
                 })

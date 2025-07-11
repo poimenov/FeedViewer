@@ -31,7 +31,7 @@ type MediaGroupExtensions() =
             this.Element.Elements() |> Seq.tryFind (fun x -> x.Name = nameTitle)
 
         match description with
-        | Some x -> Some(x.Value)
+        | Some x -> Some x.Value
         | None -> None
 
     [<Extension>]
@@ -89,14 +89,14 @@ type FeeItemExtensions =
         let thumbnail =
             this.GetElements()
             |> Seq.tryFind (fun x -> x.Name = nameThumbnail)
-            |> Option.map (fun x -> x.Attribute(XName.Get("url")).Value)
+            |> Option.map (fun x -> x.Attribute(XName.Get "url").Value)
 
         let nameImage = XName.Get("content", mrss)
 
         let image =
             this.GetElements()
-            |> Seq.tryFind (fun x -> x.Name = nameImage && x.Attribute(XName.Get("medium")).Value = "image")
-            |> Option.map (fun x -> x.Attribute(XName.Get("url")).Value)
+            |> Seq.tryFind (fun x -> x.Name = nameImage && x.Attribute(XName.Get "medium").Value = "image")
+            |> Option.map (fun x -> x.Attribute(XName.Get "url").Value)
 
         let thumbFromMediaGroup =
             let mediaGroup = this.GetMediaGroup()
@@ -111,10 +111,10 @@ type FeeItemExtensions =
             else
                 try
                     let doc = HtmlDocument.Parse this.Description
-                    let img = doc.Descendants("img") |> Seq.tryHead
+                    let img = doc.Descendants "img" |> Seq.tryHead
 
                     if img.IsSome then
-                        Some(img.Value.AttributeValue("src"))
+                        Some(img.Value.AttributeValue "src")
                     else
                         None
                 with _ ->

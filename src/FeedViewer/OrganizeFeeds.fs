@@ -18,13 +18,9 @@ module OrganizeFeeds =
                  dialogs: IDialogService) ->
                 hook.AddInitializedTask(fun () ->
                     task {
-                        store.FeedGroups.Publish(
-                            FeedGroups.LoadedChannelGroupList(dataAccess.ChannelsGroups.GetAll())
-                        )
+                        store.FeedGroups.Publish(LoadedChannelGroupList(dataAccess.ChannelsGroups.GetAll()))
 
-                        store.FeedChannels.Publish(
-                            FeedChannels.LoadedChannelsList(dataAccess.Channels.GetByGroupId(None))
-                        )
+                        store.FeedChannels.Publish(LoadedChannelsList(dataAccess.Channels.GetByGroupId None))
                     })
 
                 fragment {
@@ -36,22 +32,22 @@ module OrganizeFeeds =
                         let! feedChannels, setFeedChannels = store.FeedChannels.WithSetter()
 
                         let updateNavigation () =
-                            store.IsMenuOpen.Publish(false)
-                            store.IsMenuOpen.Publish(true)
+                            store.IsMenuOpen.Publish false
+                            store.IsMenuOpen.Publish true
 
                         let disabledFeedGroupButtons =
                             match selectedFeedGroup with
-                            | SelectedFeedGroup.SelectedGroup sg -> sg.Id = 0
-                            | SelectedFeedGroup.NotSelectedGroup -> true
+                            | SelectedGroup sg -> sg.Id = 0
+                            | NotSelectedGroup -> true
 
                         let folders =
                             match feedGroups with
-                            | FeedGroups.LoadedChannelGroupList foldersList -> ChannelGroup(0, "") :: foldersList
+                            | LoadedChannelGroupList foldersList -> ChannelGroup(0, "") :: foldersList
                             | _ -> []
 
                         let feeds =
                             match feedChannels with
-                            | FeedChannels.LoadedChannelsList feedsList -> feedsList.AsQueryable<Channel>()
+                            | LoadedChannelsList feedsList -> feedsList.AsQueryable<Channel>()
                             | _ -> [].AsQueryable<Channel>()
 
 
@@ -79,10 +75,10 @@ module OrganizeFeeds =
                                             | _ -> Some x.Id
 
                                         store.FeedChannels.Publish(
-                                            FeedChannels.LoadedChannelsList(dataAccess.Channels.GetByGroupId(id))
+                                            LoadedChannelsList(dataAccess.Channels.GetByGroupId(id))
                                         )
 
-                                        store.SelectedFeedGroup.Publish(SelectedFeedGroup.SelectedGroup x))
+                                        store.SelectedFeedGroup.Publish(SelectedGroup x))
                                 }
                             }
 
@@ -114,17 +110,15 @@ module OrganizeFeeds =
 
                                                 let! result = dialog.Result |> Async.AwaitTask
 
-                                                if (not result.Cancelled) && (not (isNull result.Data)) then
+                                                if not result.Cancelled && not (isNull result.Data) then
                                                     let data = result.Data :?> DialogData<ChannelGroup>
                                                     let group = data.Data
 
-                                                    if not (dataAccess.ChannelsGroups.Exists(group.Name)) then
+                                                    if not (dataAccess.ChannelsGroups.Exists group.Name) then
                                                         dataAccess.ChannelsGroups.Create group |> ignore
 
                                                         store.FeedGroups.Publish(
-                                                            FeedGroups.LoadedChannelGroupList(
-                                                                dataAccess.ChannelsGroups.GetAll()
-                                                            )
+                                                            LoadedChannelGroupList(dataAccess.ChannelsGroups.GetAll())
                                                         )
 
                                                         updateNavigation ()
@@ -136,7 +130,7 @@ module OrganizeFeeds =
                                     FluentButton'' {
                                         IconStart(Icons.Regular.Size20.Edit())
                                         title' (string (services.Localizer["EditCurrentFolder"]))
-                                        Disabled(disabledFeedGroupButtons)
+                                        Disabled disabledFeedGroupButtons
 
                                         OnClick(fun _ ->
                                             task {
@@ -148,9 +142,9 @@ module OrganizeFeeds =
 
                                                 let group =
                                                     match selectedFeedGroup with
-                                                    | SelectedFeedGroup.SelectedGroup sg ->
+                                                    | SelectedGroup sg ->
                                                         (dataAccess.ChannelsGroups.GetById sg.Id).Value
-                                                    | SelectedFeedGroup.NotSelectedGroup -> ChannelGroup(0, "")
+                                                    | NotSelectedGroup -> ChannelGroup(0, "")
 
                                                 let data = DialogData<ChannelGroup>(group, services.Localizer)
 
@@ -167,7 +161,7 @@ module OrganizeFeeds =
 
                                                     let! result = dialog.Result |> Async.AwaitTask
 
-                                                    if (not result.Cancelled) && (not (isNull result.Data)) then
+                                                    if not result.Cancelled && not (isNull result.Data) then
                                                         let resultData = result.Data :?> DialogData<ChannelGroup>
 
                                                         let folder = resultData.Data
@@ -176,7 +170,7 @@ module OrganizeFeeds =
                                                             dataAccess.ChannelsGroups.Update folder |> ignore
 
                                                             store.FeedGroups.Publish(
-                                                                FeedGroups.LoadedChannelGroupList(
+                                                                LoadedChannelGroupList(
                                                                     dataAccess.ChannelsGroups.GetAll()
                                                                 )
                                                             )
@@ -190,14 +184,14 @@ module OrganizeFeeds =
                                     FluentButton'' {
                                         IconStart(Icons.Regular.Size20.Delete())
                                         title' (string (services.Localizer["RemoveCurrentFolder"]))
-                                        Disabled(disabledFeedGroupButtons)
+                                        Disabled disabledFeedGroupButtons
 
                                         OnClick(fun _ ->
                                             task {
                                                 let group =
                                                     match selectedFeedGroup with
-                                                    | SelectedFeedGroup.SelectedGroup sg -> sg
-                                                    | SelectedFeedGroup.NotSelectedGroup -> ChannelGroup(0, "")
+                                                    | SelectedGroup sg -> sg
+                                                    | NotSelectedGroup -> ChannelGroup(0, "")
 
                                                 if group.Id <> 0 then
                                                     let! dialog =
@@ -217,12 +211,10 @@ module OrganizeFeeds =
 
                                                     if not result.Cancelled then
                                                         dataAccess.ChannelsGroups.Delete group.Id |> ignore
-                                                        setSelectedFeedGroup SelectedFeedGroup.NotSelectedGroup
+                                                        setSelectedFeedGroup NotSelectedGroup
 
                                                         store.FeedGroups.Publish(
-                                                            FeedGroups.LoadedChannelGroupList(
-                                                                dataAccess.ChannelsGroups.GetAll()
-                                                            )
+                                                            LoadedChannelGroupList(dataAccess.ChannelsGroups.GetAll())
                                                         )
 
                                                         updateNavigation ()
@@ -248,8 +240,8 @@ module OrganizeFeeds =
 
                                                 let groupId =
                                                     match selectedFeedGroup with
-                                                    | SelectedFeedGroup.SelectedGroup sg -> Some sg.Id
-                                                    | SelectedFeedGroup.NotSelectedGroup -> None
+                                                    | SelectedGroup sg -> Some sg.Id
+                                                    | NotSelectedGroup -> None
 
 
                                                 let! dialog =
@@ -261,7 +253,7 @@ module OrganizeFeeds =
 
                                                 let! result = dialog.Result |> Async.AwaitTask
 
-                                                if (not result.Cancelled) && (not (isNull result.Data)) then
+                                                if not result.Cancelled && not (isNull result.Data) then
                                                     let data = result.Data :?> DialogData<string>
                                                     let url = data.Data
 
@@ -292,8 +284,8 @@ module OrganizeFeeds =
                                                             |> Async.AwaitTask
 
                                                         store.FeedChannels.Publish(
-                                                            FeedChannels.LoadedChannelsList(
-                                                                dataAccess.Channels.GetByGroupId(groupId)
+                                                            LoadedChannelsList(
+                                                                dataAccess.Channels.GetByGroupId groupId
                                                             )
                                                         )
 
@@ -388,19 +380,16 @@ module OrganizeFeeds =
 
                                                             let! result = dialog.Result |> Async.AwaitTask
 
-                                                            if
-                                                                (not result.Cancelled) && (not (isNull result.Data))
-                                                            then
+                                                            if not result.Cancelled && not (isNull result.Data) then
                                                                 let resultData =
                                                                     result.Data :?> DialogData<ChannelEdit>
 
-                                                                dataAccess.Channels.Update(resultData.Data.Channel)
+                                                                dataAccess.Channels.Update resultData.Data.Channel
 
                                                                 store.FeedChannels.Publish(
-                                                                    FeedChannels.LoadedChannelsList(
-                                                                        dataAccess.Channels.GetByGroupId(
+                                                                    LoadedChannelsList(
+                                                                        dataAccess.Channels.GetByGroupId
                                                                             resultData.Data.Channel.GroupId
-                                                                        )
                                                                     )
                                                                 )
 
@@ -439,8 +428,8 @@ module OrganizeFeeds =
                                                                 dataAccess.Channels.Delete c.Id |> ignore
 
                                                                 store.FeedChannels.Publish(
-                                                                    FeedChannels.LoadedChannelsList(
-                                                                        dataAccess.Channels.GetByGroupId(c.GroupId)
+                                                                    LoadedChannelsList(
+                                                                        dataAccess.Channels.GetByGroupId c.GroupId
                                                                     )
                                                                 )
 
