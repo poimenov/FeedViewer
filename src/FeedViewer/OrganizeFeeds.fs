@@ -193,18 +193,19 @@ module OrganizeFeeds =
                                                     | SelectedGroup sg -> sg
                                                     | NotSelectedGroup -> ChannelGroup(0, "")
 
+                                                let confirmMessage =
+                                                    string (services.Localizer["Folder"])
+                                                    + $" \"{group.Name}\" "
+                                                    + string (services.Localizer["WillBeRemoved"])
+                                                    + ". "
+                                                    + string (services.Localizer["AreYouSure"]),
+                                                    string (services.Localizer["Delete"]),
+                                                    string (services.Localizer["Cancel"]),
+                                                    string (services.Localizer["RemoveCurrentFolder"])
+
                                                 if group.Id <> 0 then
                                                     let! dialog =
-                                                        dialogs.ShowConfirmationAsync(
-                                                            string (services.Localizer["Folder"])
-                                                            + $" \"{group.Name}\" "
-                                                            + string (services.Localizer["WillBeRemoved"])
-                                                            + ". "
-                                                            + string (services.Localizer["AreYouSure"]),
-                                                            string (services.Localizer["Delete"]),
-                                                            string (services.Localizer["Cancel"]),
-                                                            string (services.Localizer["RemoveCurrentFolder"])
-                                                        )
+                                                        dialogs.ShowConfirmationAsync(string confirmMessage)
                                                         |> Async.AwaitTask
 
                                                     let! result = dialog.Result |> Async.AwaitTask
