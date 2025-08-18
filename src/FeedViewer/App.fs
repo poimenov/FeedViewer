@@ -35,6 +35,8 @@ module App =
                         FluentLabel'' {
                             Typo Typography.H2
                             Color Color.Fill
+                            style' "cursor: default;"
+                            title' $"v{typeof<AppSettings>.Assembly.GetName().Version}"                            
                             AppSettings.ApplicationName
                         }
 
