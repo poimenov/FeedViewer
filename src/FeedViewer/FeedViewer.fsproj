@@ -2,7 +2,7 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0</TargetFramework>
-    <Version>1.0.0</Version>
+    <Version>1.0.1</Version>
     <NoDefaultLaunchSettingsFile>True</NoDefaultLaunchSettingsFile>
     <ApplicationIcon>wwwroot/favicon.ico</ApplicationIcon>
   </PropertyGroup>
@@ -35,17 +35,17 @@
   <ItemGroup>
     <PackageReference Include="CodeHollow.FeedReader" Version="1.2.6" />
     <PackageReference Include="Donald" Version="10.1.0" />
-    <PackageReference Include="FSharp.Data" Version="6.4.1" />
-    <PackageReference Include="log4net" Version="3.0.4" />
-    <PackageReference Include="Microsoft.Data.Sqlite" Version="9.0.2" />
+    <PackageReference Include="FSharp.Data" Version="6.6.0" />
+    <PackageReference Include="log4net" Version="3.2.0" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="9.0.9" />
     <PackageReference Include="Microsoft.Extensions.Localization" Version="8.0.*" />
     <PackageReference Include="Microsoft.Extensions.Logging.Log4Net.AspNetCore" Version="8.0.0" />
-    <PackageReference Include="Photino.Blazor" Version="3.2.0" />
+    <PackageReference Include="Photino.Blazor" Version="4.0.13" />
     <PackageReference Include="Fun.Blazor.Wasm" Version="4.1.*" />
     <PackageReference Include="Fun.Blazor.Microsoft.Web" Version="8.0.*" />
     <PackageReference Include="Fun.Blazor.Microsoft.Authorization" Version="8.0.*" />
-    <PackageReference Include="Fun.Blazor.Microsoft.FluentUI" Version="4.11.5" />
-    <PackageReference Include="Microsoft.FluentUI.AspNetCore.Components.Icons" Version="4.11.5" />
+    <PackageReference Include="Fun.Blazor.Microsoft.FluentUI" Version="4.12.1" />
+    <PackageReference Include="Microsoft.FluentUI.AspNetCore.Components.Icons" Version="4.13.0" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="8.0.*" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="8.0.*" PrivateAssets="all" />
   </ItemGroup>
