@@ -176,13 +176,12 @@ type OpenDialogService(app: Photino.Blazor.PhotinoBlazorApp) =
             )
 
 type IHttpHandler =
-    abstract member GetStringAsync: string -> Task<string>
-    abstract member GetByteArrayAsync: string -> Task<byte[]>
+    abstract member GetByteArrayAsync: string -> Task<Result<byte[], Exception>>
     abstract member GetFeedUrlsFromUrlAsync: string -> Task<string[]>
-    abstract member LoadFromWebAsync: string -> Task<HtmlDocument>
+    abstract member LoadFromWebAsync: string -> Task<HtmlDocument option>
     abstract member GetFeedAsync: string -> Task<Feed option>
 
-type HttpHandler() =
+type HttpHandler(logger: ILogger<IHttpHandler>) =
     [<Literal>]
     let USER_AGENT_HEADER_NAME = "User-Agent"
 
@@ -191,47 +190,70 @@ type HttpHandler() =
         "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
 
     interface IHttpHandler with
-        member this.GetByteArrayAsync(url: string) : Task<byte[]> =
+        member this.GetByteArrayAsync(url: string) : Task<Result<byte[], Exception>> =
             async {
-                let! response =
-                    Http.AsyncRequestStream(
-                        url = url,
-                        headers = [| (USER_AGENT_HEADER_NAME, USER_AGENT) |],
-                        httpMethod = "GET"
-                    )
+                try
+                    let! response =
+                        Http.AsyncRequestStream(
+                            url = url,
+                            headers = [| (USER_AGENT_HEADER_NAME, USER_AGENT) |],
+                            httpMethod = "GET"
+                        )
 
-                use ms = new MemoryStream()
-                do! response.ResponseStream.CopyToAsync(ms) |> Async.AwaitTask
-                return ms.ToArray()
+                    if response.StatusCode <> 200 then
+                        return Error(Exception $"HTTP status code: {response.StatusCode}")
+                    else
+                        use ms = new MemoryStream()
+                        do! response.ResponseStream.CopyToAsync ms |> Async.AwaitTask
+                        return Ok(ms.ToArray())
+                with ex ->
+                    return Error ex
             }
             |> Async.StartAsTask
 
         member this.GetFeedUrlsFromUrlAsync(url: string) : Task<string[]> =
             async {
-                let! feedUrls = FeedReader.GetFeedUrlsFromUrlAsync(url, true) |> Async.AwaitTask
-                return feedUrls |> Seq.map (fun f -> f.Url) |> Seq.toArray
+                try
+                    let! feedUrls = FeedReader.GetFeedUrlsFromUrlAsync(url, true) |> Async.AwaitTask
+                    return feedUrls |> Seq.map (fun f -> f.Url) |> Seq.toArray
+                with ex ->
+                    logger.LogError(ex, $"Error getting feed URLs from {url}")
+                    return [||]
             }
             |> Async.StartAsTask
 
-        member this.GetStringAsync(url: string) : Task<string> =
+        member this.LoadFromWebAsync(url: string) : Task<HtmlDocument option> =
             async {
-                let! response = Http.AsyncRequestString(url, headers = [| (USER_AGENT_HEADER_NAME, USER_AGENT) |])
-                return response
+                try
+                    let! response =
+                        Http.AsyncRequestString(
+                            url = url,
+                            headers = [| (USER_AGENT_HEADER_NAME, USER_AGENT) |],
+                            httpMethod = "GET"
+                        )
+
+                    return Some(HtmlDocument.Parse response)
+                with ex ->
+                    logger.LogError(ex, $"Error loading HTML from {url}")
+                    return None
             }
             |> Async.StartAsTask
-
-        member this.LoadFromWebAsync(url: string) : Task<HtmlDocument> =
-            async { return! HtmlDocument.AsyncLoad url } |> Async.StartAsTask
 
         member this.GetFeedAsync(url: string) : Task<Feed option> =
             async {
-                let! response = Http.AsyncRequestString(url, headers = [| (USER_AGENT_HEADER_NAME, USER_AGENT) |])
-
                 try
-                    let doc = XDocument.Parse response
-                    return Some(FeedReader.ReadFromString(doc.ToString()))
+                    let! response = Http.AsyncRequestString(url, headers = [| (USER_AGENT_HEADER_NAME, USER_AGENT) |])
+
+                    try
+                        let doc = XDocument.Parse response
+                        return Some(FeedReader.ReadFromString(doc.ToString()))
+                    with ex ->
+                        Debug.WriteLine $"Error parsing feed from {url}: {ex.Message}"
+                        logger.LogError(ex, $"Error parsing feed from {url}")
+                        return None
                 with ex ->
-                    Debug.WriteLine $"Error parsing feed from {url}: {ex.Message}"
+                    Debug.WriteLine $"Error fetching feed from {url}: {ex.Message}"
+                    logger.LogError(ex, $"Error fetching feed from {url}")
                     return None
             }
             |> Async.StartAsTask
@@ -257,37 +279,40 @@ type IconDownloader(http: IHttpHandler, logger: ILogger<IconDownloader>) =
                     match siteUri with
                     | Some uri when Directory.GetFiles(iconsDirectoryPath, $"{uri.Host}.*").Length = 0 ->
                         if imageUri.IsNone then
-                            let! doc = http.LoadFromWebAsync(siteUri.Value.ToString()) |> Async.AwaitTask
+                            let! html = http.LoadFromWebAsync(siteUri.Value.ToString()) |> Async.AwaitTask
 
-                            let allowedHref (href: string) =
-                                let extensions = [| ".png"; ".jpg"; ".jpeg"; ".gif"; ".webp"; ".bmp"; ".ico" |]
+                            if html.IsSome then
+                                let doc = html.Value
 
-                                let hrefFilePath =
-                                    if href.Contains("?") then
-                                        href.Substring(0, href.IndexOf("?"))
-                                    else
-                                        href
+                                let allowedHref (href: string) =
+                                    let extensions = [| ".png"; ".jpg"; ".jpeg"; ".gif"; ".webp"; ".bmp"; ".ico" |]
 
-                                extensions |> Array.exists (fun ext -> hrefFilePath.EndsWith(ext))
+                                    let hrefFilePath =
+                                        if href.Contains("?") then
+                                            href.Substring(0, href.IndexOf("?"))
+                                        else
+                                            href
 
-                            let links =
-                                doc.Descendants [ "link" ]
-                                |> Seq.filter (fun x ->
-                                    (x.HasAttribute("rel", "icon")
-                                     || x.HasAttribute("rel", "shortcut icon")
-                                     || x.HasAttribute("rel", "apple-touch-icon"))
-                                    && x.AttributeValue "href" |> allowedHref)
-                                |> Seq.toArray
+                                    extensions |> Array.exists (fun ext -> hrefFilePath.EndsWith(ext))
 
-                            if links.Length > 0 then
-                                do!
-                                    (this :> IIconDownloader)
-                                        .SaveIconAsync(
-                                            iconName,
-                                            links[0].AttributeValue "href",
-                                            Some(uri),
-                                            iconsDirectoryPath
-                                        )
+                                let links =
+                                    doc.Descendants [ "link" ]
+                                    |> Seq.filter (fun x ->
+                                        (x.HasAttribute("rel", "icon")
+                                         || x.HasAttribute("rel", "shortcut icon")
+                                         || x.HasAttribute("rel", "apple-touch-icon"))
+                                        && x.AttributeValue "href" |> allowedHref)
+                                    |> Seq.toArray
+
+                                if links.Length > 0 then
+                                    do!
+                                        (this :> IIconDownloader)
+                                            .SaveIconAsync(
+                                                iconName,
+                                                links[0].AttributeValue "href",
+                                                Some uri,
+                                                iconsDirectoryPath
+                                            )
                         else
                             do!
                                 (this :> IIconDownloader)
@@ -296,7 +321,7 @@ type IconDownloader(http: IHttpHandler, logger: ILogger<IconDownloader>) =
                     | _ -> ()
 
                 with ex ->
-                    Debug.WriteLine(ex)
+                    Debug.WriteLine ex
 
                     logger.LogError(
                         ex,
@@ -352,15 +377,24 @@ type IconDownloader(http: IHttpHandler, logger: ILogger<IconDownloader>) =
                 try
                     let! data = http.GetByteArrayAsync uriToDownload.AbsoluteUri |> Async.AwaitTask
 
-                    if data.Length > 0 then
-                        let ext = (this :> IIconDownloader).GetIconExtension data
+                    match data with
+                    | Error ex ->
+                        Debug.WriteLine ex
 
-                        if ext.IsSome then
-                            let fileName = $"{iconName}{ext.Value}"
-                            let filePath = Path.Combine(iconsDirectoryPath, fileName)
-                            File.WriteAllBytes(filePath, data)
+                        logger.LogError(
+                            ex,
+                            $"uriToDownload = {uriToDownload.AbsoluteUri}, ThreadId = {Thread.CurrentThread.ManagedThreadId}"
+                        )
+                    | Ok data ->
+                        if data.Length > 0 then
+                            let ext = (this :> IIconDownloader).GetIconExtension data
+
+                            if ext.IsSome then
+                                let fileName = $"{iconName}{ext.Value}"
+                                let filePath = Path.Combine(iconsDirectoryPath, fileName)
+                                File.WriteAllBytes(filePath, data)
                 with ex ->
-                    Debug.WriteLine(ex)
+                    Debug.WriteLine ex
 
                     logger.LogError(
                         ex,
@@ -480,7 +514,7 @@ type ChannelReader
                                 channel.Description <- toStringOption feed.Description
                                 channel.ImageUrl <- toStringOption feed.ImageUrl
                                 channel.Language <- toStringOption feed.Language
-                                channels.Update(channel) |> ignore
+                                channels.Update channel |> ignore
 
                                 feed.Items
                                 |> Seq.map (fun x ->
@@ -500,9 +534,9 @@ type ChannelReader
                                         false,
                                         x.GetCategories()
                                     ))
-
                                 |> Seq.toList
-                                |> List.iter (fun item -> channelItems.Create(item) |> ignore))
+                                |> List.iter (fun item -> channelItems.Create item |> ignore))
+
 
                         Debug.WriteLine
                             $"End read url = {channel.Url}, ThreadId = {Thread.CurrentThread.ManagedThreadId}"
@@ -523,29 +557,51 @@ type ChannelReader
         member this.ReadAllChannelsAsync() : Async<Channel array> =
             async {
                 let readChannel (id: int) =
-                    (this :> IChannelReader).ReadChannelAsync(id, AppSettings.IconsDirectoryPath)
+                    async {
+                        try
+                            let! channel = (this :> IChannelReader).ReadChannelAsync(id, AppSettings.IconsDirectoryPath)
+                            return Some channel
+                        with ex ->
+                            logger.LogError(
+                                ex,
+                                $"Error reading channel with Id = {id}, ThreadId = {Thread.CurrentThread.ManagedThreadId}"
+                            )
 
-                return!
+                            return None
+                    }
+
+                let! results =
                     channels.GetAll()
                     |> Seq.map (fun c -> c.Id)
                     |> Seq.map readChannel
                     |> Async.Parallel
-                    |> Async.StartAsTask
-                    |> Async.AwaitTask
+
+                return results |> Array.choose id
             }
 
         member this.ReadGroupAsync(groupId: int, iconsDirectoryPath: string) : Async<Channel array> =
             async {
                 let readChannel (id: int) =
-                    (this :> IChannelReader).ReadChannelAsync(id, iconsDirectoryPath)
+                    async {
+                        try
+                            let! channel = (this :> IChannelReader).ReadChannelAsync(id, AppSettings.IconsDirectoryPath)
+                            return Some channel
+                        with ex ->
+                            logger.LogError(
+                                ex,
+                                $"Error reading channel with Id = {id}, ThreadId = {Thread.CurrentThread.ManagedThreadId}"
+                            )
 
-                return!
+                            return None
+                    }
+
+                let! results =
                     channels.GetByGroupId(Some groupId)
                     |> Seq.map (fun c -> c.Id)
                     |> Seq.map readChannel
                     |> Async.Parallel
-                    |> Async.StartAsTask
-                    |> Async.AwaitTask
+
+                return results |> Array.choose id
             }
 
 type IServices =
@@ -555,6 +611,7 @@ type IServices =
     abstract member Navigation: NavigationManager
     abstract member Localizer: IStringLocalizer<SharedResources>
     abstract member OpenDialogService: IOpenDialogService
+    abstract member ToastService: IToastService
 
 type Services
     (
@@ -563,7 +620,8 @@ type Services
         dialogService: IDialogService,
         navigation: NavigationManager,
         localizer: IStringLocalizer<SharedResources>,
-        openDialogService: IOpenDialogService
+        openDialogService: IOpenDialogService,
+        toastService: IToastService
     ) =
     interface IServices with
         member this.ChannelReader = channelReader
@@ -572,3 +630,4 @@ type Services
         member this.Navigation: NavigationManager = navigation
         member this.Localizer: IStringLocalizer<SharedResources> = localizer
         member this.OpenDialogService: IOpenDialogService = openDialogService
+        member this.ToastService: IToastService = toastService

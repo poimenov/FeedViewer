@@ -5,6 +5,8 @@
   </head>
   <body>
     <outline text="Entertainment" title="Entertainment">
+      <outline type="rss" text="19FortyFive" title="19FortyFive" xmlUrl="https://www.19fortyfive.com/feed/" htmlUrl="https://www.19fortyfive.com/" />
+      <outline type="rss" text="Military Watch Magazine" title="Military Watch Magazine" xmlUrl="https://militarywatchmagazine.com/feeds/headlines" htmlUrl="https://militarywatchmagazine.com/feeds/headlines" />      
       <outline type="rss" text="Воффка Дот Ком" title="Воффка Дот Ком" xmlUrl="https://voffka.com/export/index.rss" htmlUrl="https://voffka.com/" />
       <outline type="rss" text="Книга в Ухе" title="Книга в Ухе" xmlUrl="https://knigavuhe.org/rss/" htmlUrl="https://knigavuhe.org/" />
       <outline type="rss" text="Триникси" title="Триникси" xmlUrl="http://trinixy.ru/rss.xml" htmlUrl="https://trinixy.ru/" />

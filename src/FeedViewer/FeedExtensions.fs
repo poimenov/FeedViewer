@@ -80,22 +80,28 @@ type FeeItemExtensions =
 
         this.GetElements()
         |> Seq.tryFind (fun x -> x.Name = nameGroup)
-        |> Option.map (fun x -> MediaGroup(x))
+        |> Option.map (fun x -> MediaGroup x)
 
     [<Extension>]
     static member GetThumbnailUrl(this: FeedItem) =
         let nameThumbnail = XName.Get("thumbnail", mrss)
+        let elements = this.GetElements()
 
         let thumbnail =
-            this.GetElements()
+            elements
             |> Seq.tryFind (fun x -> x.Name = nameThumbnail)
             |> Option.map (fun x -> x.Attribute(XName.Get "url").Value)
 
         let nameImage = XName.Get("content", mrss)
 
         let image =
-            this.GetElements()
-            |> Seq.tryFind (fun x -> x.Name = nameImage && x.Attribute(XName.Get "medium").Value = "image")
+            elements
+            |> Seq.tryFind (fun x ->
+                x.Name = nameImage
+                && x.HasAttributes
+                && x.Attributes() |> Seq.exists (fun a -> a.Name.LocalName = "medium")
+                && x.Attributes() |> Seq.exists (fun a -> a.Name.LocalName = "url")
+                && x.Attribute(XName.Get "medium").Value = "image")
             |> Option.map (fun x -> x.Attribute(XName.Get "url").Value)
 
         let thumbFromMediaGroup =
@@ -134,7 +140,7 @@ type FeeItemExtensions =
         let media = this.GetElements() |> Seq.filter (fun x -> x.Name = nameMedia)
 
         if media |> Seq.length > 0 then
-            media |> Seq.map (fun x -> Media(x)) |> Some
+            media |> Seq.map (fun x -> Media x) |> Some
         else
             None
 

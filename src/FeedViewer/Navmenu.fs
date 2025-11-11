@@ -56,7 +56,9 @@ module Navmenu =
                                 | ByChannelId channelId -> services.Navigation.NavigateTo $"/channel/{channelId}"
                                 | ByCategoryId categoryId -> services.Navigation.NavigateTo $"/category/{categoryId}"
                                 | BySearchString txt -> services.Navigation.NavigateTo $"/search/{txt}"),
-                            (fun ex -> printfn "%A" ex),
+                            (fun ex ->
+                                services.ToastService.ShowError ex.Message
+                                services.Navigation.NavigateTo "/channel/all"),
                             (fun _ -> ())
                         )
                     })
