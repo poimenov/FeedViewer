@@ -39,18 +39,21 @@ type PlatformService() =
 type IProcessService =
     abstract member Run: command: string * arguments: string -> unit
 
-type ProcessService() =
+type ProcessService(logger: ILogger<IProcessService>) =
     interface IProcessService with
         member this.Run(command: string, arguments: string) =
-            let psi = new ProcessStartInfo(command)
-            psi.RedirectStandardOutput <- false
-            psi.UseShellExecute <- false
-            psi.CreateNoWindow <- false
-            psi.Arguments <- arguments
+            try
+                let psi = new ProcessStartInfo(command)
+                psi.RedirectStandardOutput <- false
+                psi.UseShellExecute <- false
+                psi.CreateNoWindow <- false
+                psi.Arguments <- arguments
 
-            let p = new Process()
-            p.StartInfo <- psi
-            p.Start() |> ignore
+                use p = new Process()
+                p.StartInfo <- psi
+                p.Start() |> ignore
+            with ex ->
+                logger.LogError(ex, $"Error running process: {command} {arguments}")
 
 type ILinkOpeningService =
     abstract member OpenUrl: url: string -> unit
@@ -58,11 +61,14 @@ type ILinkOpeningService =
 type LinkOpeningService(platformService: IPlatformService, processService: IProcessService) =
     interface ILinkOpeningService with
         member this.OpenUrl(url: string) =
-            match platformService.GetPlatform() with
-            | Windows -> processService.Run("cmd", $"/c start {url}")
-            | Linux -> processService.Run("xdg-open", url)
-            | MacOS -> processService.Run("open", url)
-            | _ -> ()
+            if String.IsNullOrEmpty url then
+                ()
+            else
+                match platformService.GetPlatform() with
+                | Windows -> processService.Run("cmd", $"/c start \"\" \"{url}\"")
+                | Linux -> processService.Run("xdg-open", url)
+                | MacOS -> processService.Run("open", url)
+                | _ -> ()
 
 type IExportImportService =
     abstract member Export: string -> unit
@@ -71,7 +77,13 @@ type IExportImportService =
 type ExportImportService(channelGroups: IChannelGroups, channels: IChannels) =
     interface IExportImportService with
         member this.Export(filePath: string) =
-            if String.IsNullOrEmpty filePath || Path.GetExtension filePath <> ".opml" then
+            if
+                String.IsNullOrEmpty filePath
+                || Path.GetExtension filePath <> ".opml"
+                || String.IsNullOrEmpty(Path.GetDirectoryName filePath)
+                || not (Directory.Exists(Path.GetDirectoryName filePath))
+                || not (channels.GetAll().Length > 0)
+            then
                 ()
             else
                 let getOutline (channel: Channel) =
@@ -117,39 +129,58 @@ type ExportImportService(channelGroups: IChannelGroups, channels: IChannels) =
             else
                 let doc = XDocument.Load filePath
 
+                let attrValue (el: XElement) (name: string) =
+                    let a = el.Attribute(XName.Get name)
+                    if isNull a then String.Empty else a.Value
+
                 let importChannel (groupId: int option, channel: XElement) =
+                    let title = attrValue channel "text"
+                    let xmlUrl = attrValue channel "xmlUrl"
+                    let htmlUrl = attrValue channel "htmlUrl"
+
                     channels.Create(
                         new Channel(
                             id = 0,
                             groupId = groupId,
-                            title = channel.Attribute(XName.Get "text").Value,
-                            description = Some(channel.Attribute(XName.Get "text").Value),
-                            link = Some(channel.Attribute(XName.Get "htmlUrl").Value),
-                            url = channel.Attribute(XName.Get "xmlUrl").Value,
+                            title = title,
+                            description = (if String.IsNullOrWhiteSpace title then None else Some title),
+                            link =
+                                (if String.IsNullOrWhiteSpace htmlUrl then
+                                     None
+                                 else
+                                     Some htmlUrl),
+                            url = (if String.IsNullOrWhiteSpace xmlUrl then "" else xmlUrl),
                             imageUrl = None,
                             language = None
                         )
                     )
 
-                doc
-                    .Element(XName.Get "opml")
-                    .Element(XName.Get "body")
-                    .Elements(XName.Get "outline")
-                |> Seq.filter (fun e -> e.Attributes() |> Seq.exists (fun a -> a.Name.LocalName = "xmlUrl") |> not)
-                |> Seq.iter (fun group ->
-                    let groupId =
-                        channelGroups.Create(new ChannelGroup(id = 0, name = group.Attribute(XName.Get "text").Value))
+                let opml = doc.Element(XName.Get "opml")
 
-                    group.Elements(XName.Get("outline"))
-                    |> Seq.filter (fun e -> e.Attribute(XName.Get "type").Value = "rss")
-                    |> Seq.iter (fun channel -> importChannel (Some groupId, channel) |> ignore))
+                if isNull opml then
+                    ()
+                else
+                    let body = opml.Element(XName.Get "body")
 
-                doc
-                    .Element(XName.Get("opml"))
-                    .Element(XName.Get("body"))
-                    .Elements(XName.Get("outline"))
-                |> Seq.filter (fun e -> e.Attributes() |> Seq.exists (fun a -> a.Name.LocalName = "xmlUrl"))
-                |> Seq.iter (fun channel -> importChannel (None, channel) |> ignore)
+                    if isNull body then
+                        ()
+                    else
+                        body.Elements(XName.Get "outline")
+                        |> Seq.filter (fun e ->
+                            e.Attributes() |> Seq.exists (fun a -> a.Name.LocalName = "xmlUrl") |> not)
+                        |> Seq.iter (fun group ->
+                            let groupId =
+                                channelGroups.Create(
+                                    new ChannelGroup(id = 0, name = group.Attribute(XName.Get "text").Value)
+                                )
+
+                            group.Elements(XName.Get "outline")
+                            |> Seq.filter (fun e -> e.Attribute(XName.Get "type").Value = "rss")
+                            |> Seq.iter (fun channel -> importChannel (Some groupId, channel) |> ignore))
+
+                        body.Elements(XName.Get "outline")
+                        |> Seq.filter (fun e -> e.Attributes() |> Seq.exists (fun a -> a.Name.LocalName = "xmlUrl"))
+                        |> Seq.iter (fun channel -> importChannel (None, channel) |> ignore)
 
 type IOpenDialogService =
     abstract member OpenFile:
@@ -259,20 +290,23 @@ type HttpHandler(logger: ILogger<IHttpHandler>) =
             |> Async.StartAsTask
 
 type IIconDownloader =
-    abstract member DownloadIconAsync: string * Uri option * Uri option * string -> Async<unit>
+    abstract member DownloadIconAsync: string * Uri option * Uri option -> Async<unit>
     abstract member GetIconExtension: byte[] -> string option
     abstract member SaveIconAsync: string * string * Uri option * string -> Async<unit>
 
 type IconDownloader(http: IHttpHandler, logger: ILogger<IconDownloader>) =
     interface IIconDownloader with
-        member this.DownloadIconAsync
-            (iconName: string, imageUri: Uri option, siteUri: Uri option, iconsDirectoryPath: string)
-            : Async<unit> =
+        member this.DownloadIconAsync(iconName: string, imageUri: Uri option, siteUri: Uri option) : Async<unit> =
             async {
                 if imageUri.IsNone && siteUri.IsNone then
                     return ()
 
                 try
+                    let iconsDirectoryPath = AppSettings.IconsDirectoryPath
+
+                    if String.IsNullOrEmpty iconsDirectoryPath then
+                        return ()
+
                     if not (Directory.Exists iconsDirectoryPath) then
                         Directory.CreateDirectory iconsDirectoryPath |> ignore
 
@@ -403,8 +437,8 @@ type IconDownloader(http: IHttpHandler, logger: ILogger<IconDownloader>) =
             }
 
 type IChannelReader =
-    abstract member ReadChannelAsync: int * string -> Async<Channel>
-    abstract member ReadGroupAsync: int * string -> Async<Channel array>
+    abstract member ReadChannelAsync: int -> Async<Channel>
+    abstract member ReadGroupAsync: int -> Async<Channel array>
     abstract member ReadAllChannelsAsync: unit -> Async<Channel array>
 
 type ChannelReader
@@ -418,7 +452,7 @@ type ChannelReader
     let locker = obj ()
 
     interface IChannelReader with
-        member this.ReadChannelAsync(channelId: int, iconsDirectoryPath: string) : Async<Channel> =
+        member this.ReadChannelAsync(channelId: int) : Async<Channel> =
             async {
                 let _channel = channels.Get channelId
 
@@ -481,21 +515,25 @@ type ChannelReader
                                 else
                                     channel.Url
 
-                            Uri(sLink).GetLeftPart UriPartial.Authority
+                            let siteLeftPart =
+                                try
+                                    Uri(sLink).GetLeftPart UriPartial.Authority
+                                with :? UriFormatException ->
+                                    logger.LogWarning $"Invalid site link '{sLink}' for channel Id={channel.Id}"
+                                    sLink
+
+                            siteLeftPart
 
                         let siteUri =
-                            if String.IsNullOrEmpty siteLink then
+                            try
+                                if String.IsNullOrEmpty siteLink then
+                                    None
+                                else
+                                    Some(Uri siteLink)
+                            with :? UriFormatException ->
                                 None
-                            else
-                                Some(Uri siteLink)
 
-                        do!
-                            iconDownloader.DownloadIconAsync(
-                                Uri(channel.Url).Host,
-                                imageUrl,
-                                siteUri,
-                                iconsDirectoryPath
-                            )
+                        do! iconDownloader.DownloadIconAsync(Uri(channel.Url).Host, imageUrl, siteUri)
 
                         lock locker (fun () ->
                             if not (String.IsNullOrEmpty feed.Title) then
@@ -559,7 +597,7 @@ type ChannelReader
                 let readChannel (id: int) =
                     async {
                         try
-                            let! channel = (this :> IChannelReader).ReadChannelAsync(id, AppSettings.IconsDirectoryPath)
+                            let! channel = (this :> IChannelReader).ReadChannelAsync id
                             return Some channel
                         with ex ->
                             logger.LogError(
@@ -579,12 +617,12 @@ type ChannelReader
                 return results |> Array.choose id
             }
 
-        member this.ReadGroupAsync(groupId: int, iconsDirectoryPath: string) : Async<Channel array> =
+        member this.ReadGroupAsync(groupId: int) : Async<Channel array> =
             async {
                 let readChannel (id: int) =
                     async {
                         try
-                            let! channel = (this :> IChannelReader).ReadChannelAsync(id, AppSettings.IconsDirectoryPath)
+                            let! channel = (this :> IChannelReader).ReadChannelAsync id
                             return Some channel
                         with ex ->
                             logger.LogError(

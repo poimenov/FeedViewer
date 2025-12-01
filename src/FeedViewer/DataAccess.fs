@@ -634,10 +634,9 @@ type ChannelItems(connectionService: IConnectionService) =
                 conn
                 |> Db.newCommand
                     "UPDATE ChannelItems SET IsRead = @IsRead
-                    FROM ChannelItems CI
-                    INNER JOIN Channels C
-                    ON CI.ChannelId = C.Id
-                    WHERE C.ChannelsGroupId = @ChannelsGroupId"
+                    WHERE ChannelId IN (
+                        SELECT C.Id FROM Channels C WHERE C.ChannelsGroupId = @ChannelsGroupId
+                    )"
                 |> Db.setParams [ "ChannelsGroupId", SqlType.Int groupId; "IsRead", SqlType.Boolean isRead ]
 
             cmd |> Db.exec

@@ -203,7 +203,8 @@ type FeeItemExtensions =
                     else
                         defaultStyle
 
-                $"<div><iframe data-clean=\"yes\" style=\"border: 0px;{frameStyle}\"
+                $"<div><iframe referrerpolicy=\"strict-origin-when-cross-origin\" 
+                data-clean=\"yes\" style=\"border: 0px;{frameStyle}\"
                 src=\"https://www.youtube.com/embed/{id.Value}\"title=\"{this.Title}\" 
                 allowfullscreen=\"\"></iframe></div><div class=\"pre\">{description}</div>"
             else

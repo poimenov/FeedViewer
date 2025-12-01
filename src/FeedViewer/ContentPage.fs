@@ -2,6 +2,7 @@ namespace FeedViewer.Application
 
 module ContentPage =
     open System.Linq
+    open System.Threading.Tasks
     open Microsoft.AspNetCore.Components.Web.Virtualization
     open Microsoft.FluentUI.AspNetCore.Components
     open Microsoft.JSInterop
@@ -44,27 +45,18 @@ module ContentPage =
         else
             ()
 
-    let update (id: ChannelId, reader: IChannelReader) =
+    let update (id: ChannelId, reader: IChannelReader) : Task<Channel array> =
         match id with
-        | AllUnread -> reader.ReadAllChannelsAsync() |> Async.StartAsTask |> Async.AwaitTask
-        | ByGroupId groupId ->
-            reader.ReadGroupAsync(groupId, AppSettings.IconsDirectoryPath)
-            |> Async.StartAsTask
-            |> Async.AwaitTask
+        | AllUnread -> reader.ReadAllChannelsAsync() |> Async.StartAsTask
+        | ByGroupId groupId -> reader.ReadGroupAsync groupId |> Async.StartAsTask
         | ByChannelId channelId ->
-            let readChannel (id: int) =
-                reader.ReadChannelAsync(id, AppSettings.IconsDirectoryPath)
-
-            [ channelId ]
-            |> List.map readChannel
-            |> Async.Parallel
-            |> Async.StartAsTask
-            |> Async.AwaitTask
-        | RecentlyRead -> async { return [||] }
-        | ByCategoryId _ -> async { return [||] }
-        | BySearchString _ -> async { return [||] }
-        | ReadLater -> async { return [||] }
-        | Starred -> async { return [||] }
+            let readChannel (id: int) = reader.ReadChannelAsync id
+            [ channelId ] |> List.map readChannel |> Async.Parallel |> Async.StartAsTask
+        | RecentlyRead -> Task.FromResult [||]
+        | ByCategoryId _ -> Task.FromResult [||]
+        | BySearchString _ -> Task.FromResult [||]
+        | ReadLater -> Task.FromResult [||]
+        | Starred -> Task.FromResult [||]
 
     let openChannelLink (id: ChannelId, dataAccess: IDataAccess, linkOpeningService: ILinkOpeningService) =
         match id with
@@ -117,9 +109,18 @@ module ContentPage =
                 | ReadLater -> string (services.Localizer["ReadLater"])
                 | Starred -> string (services.Localizer["Favorites"])
                 | RecentlyRead -> string (services.Localizer["RecentlyRead"])
-                | ByGroupId groupId -> dataAccess.ChannelsGroups.GetById(groupId).Value.Name
-                | ByChannelId channelId -> dataAccess.Channels.Get(channelId).Value.Title
-                | ByCategoryId categoryId -> dataAccess.Categories.Get(categoryId).Value.Name
+                | ByGroupId groupId ->
+                    match dataAccess.ChannelsGroups.GetById(groupId) with
+                    | Some g -> g.Name
+                    | None -> string (services.Localizer["All"])
+                | ByChannelId channelId ->
+                    match dataAccess.Channels.Get channelId with
+                    | Some ch -> ch.Title
+                    | None -> string (services.Localizer["All"])
+                | ByCategoryId categoryId ->
+                    match dataAccess.Categories.Get(categoryId) with
+                    | Some c -> c.Name
+                    | None -> string (services.Localizer["All"])
                 | BySearchString _ -> string (services.Localizer["SearchResults"])
 
             store.CountItems.Publish(getCount (id, dataAccess))
