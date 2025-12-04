@@ -143,7 +143,8 @@ module OrganizeFeeds =
                                                 let group =
                                                     match selectedFeedGroup with
                                                     | SelectedGroup sg ->
-                                                        (dataAccess.ChannelsGroups.GetById sg.Id).Value
+                                                        dataAccess.ChannelsGroups.GetById sg.Id
+                                                        |> Option.defaultValue (ChannelGroup(0, ""))
                                                     | NotSelectedGroup -> ChannelGroup(0, "")
 
                                                 let data = DialogData<ChannelGroup>(group, services.Localizer)
@@ -163,10 +164,15 @@ module OrganizeFeeds =
 
                                                     if not result.Cancelled && not (isNull result.Data) then
                                                         let resultData = result.Data :?> DialogData<ChannelGroup>
-
                                                         let folder = resultData.Data
 
-                                                        if not (dataAccess.ChannelsGroups.Exists(folder.Name)) then
+                                                        let shouldUpdate =
+                                                            if folder.Name <> group.Name then
+                                                                not (dataAccess.ChannelsGroups.Exists folder.Name)
+                                                            else
+                                                                true                                                        
+
+                                                        if shouldUpdate then
                                                             dataAccess.ChannelsGroups.Update folder |> ignore
 
                                                             store.FeedGroups.Publish(
@@ -198,14 +204,17 @@ module OrganizeFeeds =
                                                     + $" \"{group.Name}\" "
                                                     + string (services.Localizer["WillBeRemoved"])
                                                     + ". "
-                                                    + string (services.Localizer["AreYouSure"]),
-                                                    string (services.Localizer["Delete"]),
-                                                    string (services.Localizer["Cancel"]),
-                                                    string (services.Localizer["RemoveCurrentFolder"])
+                                                    + string (services.Localizer["AreYouSure"])
+
 
                                                 if group.Id <> 0 then
                                                     let! dialog =
-                                                        dialogs.ShowConfirmationAsync(string confirmMessage)
+                                                        dialogs.ShowConfirmationAsync(
+                                                            confirmMessage,
+                                                            string (services.Localizer["Delete"]),
+                                                            string (services.Localizer["Cancel"]),
+                                                            string (services.Localizer["RemoveCurrentFolder"])
+                                                        )
                                                         |> Async.AwaitTask
 
                                                     let! result = dialog.Result |> Async.AwaitTask
@@ -358,7 +367,9 @@ module OrganizeFeeds =
                                                             dialogParams.PreventDismissOnOverlayClick <- true
                                                             dialogParams.PreventScroll <- true
 
-                                                            let feed = dataAccess.Channels.Get(c.Id).Value
+                                                            let feed =
+                                                                dataAccess.Channels.Get(c.Id)
+                                                                |> Option.defaultValue c
 
                                                             let data =
                                                                 DialogData(
