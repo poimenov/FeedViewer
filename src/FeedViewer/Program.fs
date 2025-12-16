@@ -19,12 +19,12 @@ open FeedViewer.AppSettings
 [<EntryPoint>]
 let main args =
     let DATA_DIRECTORY = "DATA_DIRECTORY"
-    let builder = PhotinoBlazorAppBuilder.CreateDefault(args)
+    let builder = PhotinoBlazorAppBuilder.CreateDefault args
 
     let configuration =
         ConfigurationBuilder()
-            .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
-            .AddJsonFile(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, AppSettings.AppConfigFileName), true, true)
+            .SetBasePath(AppSettings.AssemblyFolderPath)
+            .AddJsonFile(Path.Combine(AppSettings.AssemblyFolderPath, AppSettings.AppConfigFileName), true, true)
             .Build()
 
     builder.Services.AddFunBlazorWasm() |> ignore

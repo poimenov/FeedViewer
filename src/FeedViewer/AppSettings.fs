@@ -21,8 +21,7 @@ type public AppSettings() =
             AppSettings.ApplicationName
         )
 
-    static member AssemblyFolderPath =
-        Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)
+    static member AssemblyFolderPath = AppContext.BaseDirectory
 
     static member DataBasePath =
         Path.Combine(AppSettings.AppDataPath, AppSettings.DataBaseFileName)
